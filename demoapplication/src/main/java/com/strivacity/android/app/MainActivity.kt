@@ -156,6 +156,17 @@ fun Login(nativeSDK: NativeSDK) {
             }) {
               Text("Get Access Token")
             }
+
+        Button(
+            onClick = {
+              coroutineScope.launch {
+                val idToken = profile!!.idToken
+                println(idToken)
+                Toast.makeText(context, idToken, Toast.LENGTH_LONG).show()
+              }
+            }) {
+              Text("Get ID Token")
+            }
       }
     } else if (loginInProgress) {
       LoginView(nativeSDK.loginController!!)

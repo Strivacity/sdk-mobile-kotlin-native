@@ -79,6 +79,11 @@ internal constructor(
   internal constructor(
       tokenResponse: TokenResponse
   ) : this(tokenResponse, Instant.now().plusSeconds(tokenResponse.expiresIn.toLong()))
+
+  val idToken: String
+    get() {
+      return tokenResponse.idToken
+    }
 }
 
 internal fun extractClaims(tokenResponse: TokenResponse): Map<String, Any?> {
