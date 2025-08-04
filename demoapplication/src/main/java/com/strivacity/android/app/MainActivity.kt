@@ -119,7 +119,12 @@ fun Login(nativeSDK: NativeSDK) {
                 null -> null
                 else -> activity.intent?.data.toString()
               }
-          nativeSDK.continueFlow(uri)
+
+          try {
+            nativeSDK.continueFlow(uri)
+          } catch (e: Error) {
+            error = e
+          }
         }
       }
     }
@@ -160,11 +165,15 @@ fun Login(nativeSDK: NativeSDK) {
             onClick = {
               coroutineScope.launch {
                 error = null
-                nativeSDK.login(
-                    context,
-                    {},
-                    { error = it },
-                    LoginParameters(scopes = listOf("openid", "profile", "offline")))
+                try {
+                  nativeSDK.login(
+                      context,
+                      {},
+                      { error = it },
+                      LoginParameters(scopes = listOf("openid", "profile", "offline")))
+                } catch (e: Error) {
+                  error = e
+                }
               }
             }) {
               Text("Login")
