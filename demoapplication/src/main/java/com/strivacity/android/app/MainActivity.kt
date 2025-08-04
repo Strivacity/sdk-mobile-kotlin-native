@@ -119,7 +119,12 @@ fun Login(nativeSDK: NativeSDK) {
                 null -> null
                 else -> activity.intent?.data.toString()
               }
-          nativeSDK.continueFlow(uri)
+
+          try {
+            nativeSDK.continueFlow(uri)
+          } catch (e: Error) {
+            error = e
+          }
         }
       }
     }
@@ -151,6 +156,17 @@ fun Login(nativeSDK: NativeSDK) {
             }) {
               Text("Get Access Token")
             }
+
+        Button(
+            onClick = {
+              coroutineScope.launch {
+                val idToken = profile!!.idToken
+                println(idToken)
+                Toast.makeText(context, idToken, Toast.LENGTH_LONG).show()
+              }
+            }) {
+              Text("Get ID Token")
+            }
       }
     } else if (loginInProgress) {
       LoginView(nativeSDK.loginController!!)
@@ -160,11 +176,15 @@ fun Login(nativeSDK: NativeSDK) {
             onClick = {
               coroutineScope.launch {
                 error = null
-                nativeSDK.login(
-                    context,
-                    {},
-                    { error = it },
-                    LoginParameters(scopes = listOf("openid", "profile", "offline")))
+                try {
+                  nativeSDK.login(
+                      context,
+                      {},
+                      { error = it },
+                      LoginParameters(scopes = listOf("openid", "profile", "offline")))
+                } catch (e: Error) {
+                  error = e
+                }
               }
             }) {
               Text("Login")

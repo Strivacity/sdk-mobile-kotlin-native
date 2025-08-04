@@ -6,10 +6,10 @@ class OidcError(val error: String, val errorDescription: String?) : Error()
 
 class HostedFlowCanceledError() : Error()
 
-class UnknownError(exception: Exception) : Error()
+class UnknownError(val exception: Exception) : Error()
 
-class InvalidCallbackError(reason: String) : Error()
+class InvalidCallbackError(val reason: String) : Error()
 
-class HttpError(statusCode: Int) : Error()
+class HttpError(val statusCode: Int) : Error()
 
 class SessionExpiredError : Error()

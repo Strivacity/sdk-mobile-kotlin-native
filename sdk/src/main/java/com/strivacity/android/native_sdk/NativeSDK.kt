@@ -1,6 +1,7 @@
 package com.strivacity.android.native_sdk
 
 import android.content.Context
+import android.util.Log
 import com.strivacity.android.native_sdk.render.LoginController
 import com.strivacity.android.native_sdk.service.HttpService
 import com.strivacity.android.native_sdk.service.LoginHandlerService
@@ -147,7 +148,11 @@ class NativeSDK(
             }
             .build()
 
-    oidcHandlerService.handleCall(url)
+    try {
+      oidcHandlerService.handleCall(url)
+    } catch (e: Error) {
+      Log.d("NativeSDK", "Failed to call logout endpoint", e)
+    }
   }
 
   private suspend fun continueFlow(oidcParams: OidcParams, parameters: Parameters) {
