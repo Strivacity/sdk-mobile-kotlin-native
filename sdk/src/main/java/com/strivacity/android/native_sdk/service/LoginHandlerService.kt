@@ -1,5 +1,6 @@
 package com.strivacity.android.native_sdk.service
 
+import android.util.Log
 import com.strivacity.android.native_sdk.HttpError
 import com.strivacity.android.native_sdk.SessionExpiredError
 import com.strivacity.android.native_sdk.render.models.Screen
