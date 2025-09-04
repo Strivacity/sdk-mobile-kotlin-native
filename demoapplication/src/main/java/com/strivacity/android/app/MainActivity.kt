@@ -46,188 +46,201 @@ import com.strivacity.android.native_sdk.render.models.*
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
 
-  override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContent {
+            SdkmobilekotlinnativeTheme {
+                Main()
+            }
+        }
+    }
 
-    enableEdgeToEdge()
-    setContent { SdkmobilekotlinnativeTheme { Main() } }
-  }
-
-  override fun onNewIntent(intent: Intent, caller: ComponentCaller) {
-    super.onNewIntent(intent, caller)
-    setIntent(intent)
-  }
+    override fun onNewIntent(intent: Intent, caller: ComponentCaller) {
+        super.onNewIntent(intent, caller)
+        setIntent(intent)
+    }
 }
 
 @Composable
 fun Main() {
-  val context = LocalContext.current
-  val nativeSDK by remember {
-    mutableStateOf(
-        NativeSDK(
-            "https://example.org",
-            "",
-            "android://native-flow",
-            "android://native-flow",
-            SharedPreferenceStorage(
-                context.getSharedPreferences("kotlin-demo", Context.MODE_PRIVATE))))
-  }
+    val context = LocalContext.current
+    val nativeSDK by remember {
+        mutableStateOf(
+            NativeSDK(
+                "https://example.org",
+                "",
+                "android://native-flow",
+                "android://native-flow",
+                SharedPreferenceStorage(
+                    context.getSharedPreferences("kotlin-demo", Context.MODE_PRIVATE)
+                )
+            )
+        )
+    }
 
-  Scaffold(modifier = Modifier.fillMaxSize(), floatingActionButton = { CancelFAB(nativeSDK) }) {
-      innerPadding ->
-    Box(
-        modifier = Modifier.fillMaxSize().padding(innerPadding),
-        contentAlignment = Alignment.Center) {
-          Login(nativeSDK)
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        floatingActionButton = { CancelFAB(nativeSDK) }) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            contentAlignment = Alignment.Center
+        ) {
+            Login(nativeSDK)
         }
-  }
+    }
 }
 
 @Composable
 fun CancelFAB(nativeSDK: NativeSDK) {
-  val loginInProgress by nativeSDK.session.loginInProgress.collectAsState()
+    val loginInProgress by nativeSDK.session.loginInProgress.collectAsState()
 
-  if (loginInProgress) {
-    FloatingActionButton(
-        onClick = { nativeSDK.cancelFlow() },
-    ) {
-      Icon(Icons.Filled.Close, "Cancel login flow")
+    if (loginInProgress) {
+        FloatingActionButton(
+            onClick = { nativeSDK.cancelFlow() },
+        ) {
+            Icon(Icons.Filled.Close, "Cancel login flow")
+        }
     }
-  }
 }
 
 @Composable
 fun Login(nativeSDK: NativeSDK) {
-  val coroutineScope = rememberCoroutineScope()
-  val loginInProgress by nativeSDK.session.loginInProgress.collectAsState()
-  val profile by nativeSDK.session.profile.collectAsState()
+    val coroutineScope = rememberCoroutineScope()
+    val loginInProgress by nativeSDK.session.loginInProgress.collectAsState()
+    val profile by nativeSDK.session.profile.collectAsState()
 
-  var error by remember { mutableStateOf(null as Error?) }
-  var loading by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf(null as Error?) }
+    var loading by remember { mutableStateOf(true) }
 
-  val context = LocalContext.current
+    val context = LocalContext.current
 
-  DisposableEffect(Unit) {
-    val activity = context as? ComponentActivity
-    val lifecycle = activity?.lifecycle
-    val observer = LifecycleEventObserver { _, event ->
-      if (event == Lifecycle.Event.ON_RESUME && nativeSDK.isRedirectExpected()) {
-        coroutineScope.launch {
-          val uri =
-              when (activity?.intent?.data) {
-                null -> null
-                else -> activity.intent?.data.toString()
-              }
+    DisposableEffect(Unit) {
+        val activity = context as? ComponentActivity
+        val lifecycle = activity?.lifecycle
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME && nativeSDK.isRedirectExpected()) {
+                coroutineScope.launch {
+                    val uri = when (activity?.intent?.data) {
+                        null -> null
+                        else -> activity.intent?.data.toString()
+                    }
 
-          try {
-            nativeSDK.continueFlow(uri)
-          } catch (e: Error) {
-            error = e
-          }
+                    try {
+                        nativeSDK.continueFlow(uri)
+                    } catch (e: Error) {
+                        error = e
+                    }
+                }
+            }
         }
-      }
+
+        lifecycle?.addObserver(observer)
+
+        onDispose { lifecycle?.removeObserver(observer) }
     }
 
-    lifecycle?.addObserver(observer)
-
-    onDispose { lifecycle?.removeObserver(observer) }
-  }
-
-  if (loading) {
-    Text("Loading...")
-  } else {
-    if (profile != null) {
-      Column {
-        Text("Hello ${profile!!.claims["given_name"]}")
-        Button(onClick = { coroutineScope.launch { nativeSDK.logout() } }) { Text("Logout") }
-
-        Button(
-            onClick = {
-              coroutineScope.launch {
-                try {
-                  val accessToken = nativeSDK.getAccessToken()
-                  println(nativeSDK.getAccessToken())
-                  Toast.makeText(context, accessToken, Toast.LENGTH_LONG).show()
-                } catch (e: Exception) {
-                  Toast.makeText(context, "Unable to fetch access token", Toast.LENGTH_LONG).show()
-                }
-              }
-            }) {
-              Text("Get Access Token")
-            }
-
-        Button(
-            onClick = {
-              coroutineScope.launch {
-                val idToken = profile!!.idToken
-                println(idToken)
-                Toast.makeText(context, idToken, Toast.LENGTH_LONG).show()
-              }
-            }) {
-              Text("Get ID Token")
-            }
-      }
-    } else if (loginInProgress) {
-      LoginView(nativeSDK.loginController!!)
+    if (loading) {
+        Text("Loading...")
     } else {
-      Column {
-        Button(
-            onClick = {
-              coroutineScope.launch {
-                error = null
-                try {
-                  nativeSDK.login(
-                      context,
-                      {},
-                      { error = it },
-                      LoginParameters(scopes = listOf("openid", "profile", "offline")))
-                } catch (e: Error) {
-                  error = e
+        if (profile != null) {
+            Column {
+                Text("Hello ${profile!!.claims["given_name"]}")
+                Button(onClick = { coroutineScope.launch { nativeSDK.logout() } }) { Text("Logout") }
+
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            try {
+                                val accessToken = nativeSDK.getAccessToken()
+                                println(nativeSDK.getAccessToken())
+                                Toast.makeText(context, accessToken, Toast.LENGTH_LONG).show()
+                            } catch (e: Exception) {
+                                Toast.makeText(
+                                    context, "Unable to fetch access token", Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        }
+                    }) {
+                    Text("Get Access Token")
                 }
-              }
-            }) {
-              Text("Login")
+
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            val idToken = profile!!.idToken
+                            println(idToken)
+                            Toast.makeText(context, idToken, Toast.LENGTH_LONG).show()
+                        }
+                    }) {
+                    Text("Get ID Token")
+                }
             }
+        } else if (loginInProgress) {
+            LoginView(nativeSDK.loginController!!)
+        } else {
+            Column {
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            error = null
+                            try {
+                                nativeSDK.login(
+                                    context,
+                                    {},
+                                    { error = it },
+                                    LoginParameters(scopes = listOf("openid", "profile", "offline"))
+                                )
+                            } catch (e: Error) {
+                                error = e
+                            }
+                        }
+                    }) {
+                    Text("Login")
+                }
 
-        when (error) {
-          null -> {} // no error
+                when (error) {
+                    null -> {} // no error
 
-          is OidcError ->
-              Text(
-                  (error as OidcError).errorDescription ?: (error as OidcError).error,
-                  color = Color.Red)
+                    is OidcError -> Text(
+                        (error as OidcError).errorDescription ?: (error as OidcError).error,
+                        color = Color.Red
+                    )
 
-          is HostedFlowCanceledError -> Text("Hosted flow canceled", color = Color.Red)
-          is SessionExpiredError -> Text("Session expired", color = Color.Red)
+                    is HostedFlowCanceledError -> Text("Hosted flow canceled", color = Color.Red)
+                    is SessionExpiredError -> Text("Session expired", color = Color.Red)
 
-          else -> Text("N/A", color = Color.Red)
+                    else -> Text("N/A", color = Color.Red)
+                }
+            }
         }
-      }
     }
-  }
 
-  LaunchedEffect(Unit) {
-    coroutineScope.launch {
-      nativeSDK.initializeSession()
-      loading = false
+    LaunchedEffect(Unit) {
+        coroutineScope.launch {
+            nativeSDK.initializeSession()
+            loading = false
+        }
     }
-  }
 }
 
 @Composable
 fun LoginView(loginController: LoginController) {
-  val screen by loginController.screen.collectAsState()
-  val layout = screen?.layout
-  Layout(loginController, screen!!, layout!!)
+    val screen by loginController.screen.collectAsState()
+    val layout = screen?.layout
+    Layout(loginController, screen!!, layout!!)
 
-  val messages by loginController.messages.collectAsState()
-  when (messages) {
-    is GlobalMessages -> {
-      Toast.makeText(
-              LocalContext.current, (messages as GlobalMessages).global.text, Toast.LENGTH_LONG)
-          .show()
+    val messages by loginController.messages.collectAsState()
+    when (messages) {
+        is GlobalMessages -> {
+            Toast.makeText(
+                LocalContext.current, (messages as GlobalMessages).global.text, Toast.LENGTH_LONG
+            ).show()
+        }
+
+        else -> {}
     }
-    else -> {}
-  }
 }
