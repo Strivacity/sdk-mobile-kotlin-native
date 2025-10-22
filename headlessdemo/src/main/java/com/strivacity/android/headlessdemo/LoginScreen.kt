@@ -1,0 +1,57 @@
+package com.strivacity.android.headlessdemo
+
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import com.strivacity.android.headlessdemo.login.IdentificationView
+import com.strivacity.android.headlessdemo.login.PasswordView
+import com.strivacity.android.native_sdk.HeadlessAdapter
+import com.strivacity.android.native_sdk.HeadlessAdapterDelegate
+import com.strivacity.android.native_sdk.NativeSDK
+import com.strivacity.android.native_sdk.render.models.Screen
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+
+@Composable
+fun LoginScreen(nativeSDK: NativeSDK) {
+
+  val loginScreenModel by remember { mutableStateOf(LoginScreenModel()) }
+
+  val headlessAdapter by remember { mutableStateOf(HeadlessAdapter(nativeSDK, loginScreenModel)) }
+
+  headlessAdapter.initialize()
+
+  val screen by loginScreenModel.screen.collectAsState()
+
+  if (screen == null) {
+    Text("Loading")
+  } else {
+    when (screen!!.screen) {
+      "identification" -> {
+        IdentificationView(screen!!, headlessAdapter)
+      }
+      "password" -> {
+        PasswordView(screen!!, headlessAdapter)
+      }
+      else -> {
+        Text("Unknown screen")
+      }
+    }
+  }
+}
+
+class LoginScreenModel : HeadlessAdapterDelegate {
+  private val _screen = MutableStateFlow<Screen?>(null)
+  val screen: StateFlow<Screen?> = _screen
+
+  override fun renderScreen(screen: Screen) {
+    _screen.value = screen
+  }
+
+  override fun refreshScreen(screen: Screen) {
+    _screen.value = screen
+  }
+}
