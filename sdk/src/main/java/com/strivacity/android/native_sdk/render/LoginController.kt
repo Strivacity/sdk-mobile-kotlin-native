@@ -40,13 +40,17 @@ internal constructor(
   }
 
   suspend fun submit(formId: String) {
-    _processing.value = true
-
     val body =
         when (val map = forms.value[formId]) {
           null -> mapOf()
           else -> unfoldMap(map)
         }
+
+    submit(formId, body)
+  }
+
+  internal suspend fun submit(formId: String, body: Map<String, Any>) {
+    _processing.value = true
 
     try {
       updateScreen(loginHandlerService.submitForm(formId, body))
