@@ -224,7 +224,185 @@ when (error) {
 
 ### Display the login view
 
+We support two different login views:
+* SDK Provided Login View
+   * This is provided by the SDK using the `LoginView` Composable function.
+   * In this mode you are responsible for rendering specific widget types.
+   * Customization options:
+      * Per widget type customization
+      * Customize the layout for specific screens
+   * This mode will track server side configuration changes (e.g.: new input fields, new screens, etc.)
+* Headless
+   * This option lets you take full control over the rendering of the login view
+   * In this mode you are responsible for rendering the login view and handling the login flow based on the screens provided
+   * This mode will **not** track server side configuration changes by default (e.g.: new input fields, new screens, etc.)
+
+#### SDK Provided Login View
+
 This can be done in location (2). An example implementation is given in the demo application with the `LoginView` Composable function.
+
+#### Headless
+
+For this operation mode we provide a `HeadlessAdapter` class. This class takes a delegate that will receive the screens that need to be rendered.
+An example implementation is given in the `headlessdemo` application with the `LoginScreen` Composable function.
+
+```kotlin
+interface HeadlessAdapterDelegate {
+  fun renderScreen(screen: Screen)
+
+  fun refreshScreen(screen: Screen)
+}
+```
+
+The `renderScreen` method will be called when a new screen is available.
+The `refreshScreen` method will be called when a screen needs to be refreshed, for example, when there is an error message to display.
+
+Based on the screen type available in the `screen` property of the `Screen` class, you will need to render the corresponding view.
+
+Example usage:
+```kotlin
+@Composable
+fun LoginScreen(nativeSDK: NativeSDK) {
+
+  val loginScreenModel by remember { mutableStateOf(LoginScreenModel()) }
+
+  val headlessAdapter by remember { mutableStateOf(HeadlessAdapter(nativeSDK, loginScreenModel)) }
+
+  headlessAdapter.initialize()
+
+  val screen by loginScreenModel.screen.collectAsState()
+
+  if (screen == null) {
+    Text("Loading")
+  } else {
+    when (screen!!.screen) {
+      "identification" -> {
+        IdentificationView(screen!!, headlessAdapter)
+      }
+      "password" -> {
+        PasswordView(screen!!, headlessAdapter)
+      }
+      else -> {
+        Text("Unknown screen")
+      }
+    }
+  }
+}
+
+class LoginScreenModel : HeadlessAdapterDelegate {
+  private val _screen = MutableStateFlow<Screen?>(null)
+  val screen: StateFlow<Screen?> = _screen
+
+  override fun renderScreen(screen: Screen) {
+    _screen.value = screen
+  }
+
+  override fun refreshScreen(screen: Screen) {
+    _screen.value = screen
+  }
+}
+```
+
+**Rendering the screens:**
+
+Information about what need to be rendered can be retrieved from the `forms` property of the `Screen` class.
+
+To check if a specific field has an error, you can use the `messages` function on the `HeadlessAdapter` instance.
+```kotlin
+fun messages(): StateFlow<Messages?>
+```
+
+To submit the form, you can use the `submit` function on the `HeadlessAdapter` instance.
+```kotlin
+suspend fun submit(formId: String, body: Map<String, Any>)
+```
+
+Example for a password screen,
+Keep in mind that this is a simplified example that will not handle dynamic changes to the screen.
+
+```kotlin
+@Composable
+fun PasswordView(screen: Screen, headlessAdapter: HeadlessAdapter) {
+  val messages by headlessAdapter.messages().collectAsState()
+
+  val coroutineScope = rememberCoroutineScope()
+
+  var password by remember { mutableStateOf("") }
+  var keepMeLoggedIn by remember {
+    mutableStateOf(
+        screen.forms
+            ?.find { it.id == "password" }
+            ?.widgets
+            ?.find { it.id == "keepMeLoggedIn" }
+            ?.value() as Boolean?
+            ?: false)
+  }
+
+  val identifierWidget =
+      screen.forms?.find { it.id == "reset" }?.widgets?.find { it.id == "identifier" }
+
+  val identifier =
+      when (identifierWidget) {
+        is StaticWidget -> {
+          identifierWidget.value
+        }
+        else -> ""
+      }
+
+  Column {
+    Text("Enter password")
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+      Text(identifier)
+      TextButton(onClick = { coroutineScope.launch { headlessAdapter.submit("reset", mapOf()) } }) {
+        Text("Not you?")
+      }
+    }
+
+    TextField(
+        value = password,
+        onValueChange = { password = it },
+        label = { Text("Enter your password") },
+        visualTransformation = PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+    )
+    val errorMessage = messages?.errorMessageForWidget("password", "password")
+    if (errorMessage != null) {
+      Text(errorMessage, color = Color.Red)
+    }
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+      Checkbox(keepMeLoggedIn, { keepMeLoggedIn = it })
+      Text("Keep me logged in")
+    }
+
+    Button(
+        onClick = {
+          coroutineScope.launch {
+            headlessAdapter.submit(
+                "password", mapOf("password" to password, "keepMeLoggedIn" to keepMeLoggedIn))
+          }
+        }) {
+          Text("Continue")
+        }
+
+    TextButton(
+        onClick = {
+          coroutineScope.launch {
+            headlessAdapter.submit("additionalActions/forgottenPassword", mapOf())
+          }
+        }) {
+          Text("Forgot your password?")
+        }
+
+    TextButton(onClick = { coroutineScope.launch { headlessAdapter.submit("reset", mapOf()) } }) {
+      Text("Back to login")
+    }
+  }
+}
+```
+
+#### Cancel the active flow
 
 During login, it's possible to programmatically cancel a login flow using the `cancelFlow` method on the `nativeSDK` instance.
 

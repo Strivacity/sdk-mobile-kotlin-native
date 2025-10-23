@@ -18,7 +18,8 @@ data class FormWidget(override val id: String, val widgets: List<Widget>) : Widg
 
 @Serializable
 @SerialName("submit")
-data class SubmitWidget(override val id: String, val label: String, val render: Render) : Widget() {
+data class SubmitWidget(override val id: String, val label: String, val render: Render?) :
+    Widget() {
   @Serializable
   data class Render(
       val type: String,
@@ -32,7 +33,8 @@ data class SubmitWidget(override val id: String, val label: String, val render: 
 
 @Serializable
 @SerialName("static")
-data class StaticWidget(override val id: String, val value: String, val render: Render) : Widget() {
+data class StaticWidget(override val id: String, val value: String, val render: Render?) :
+    Widget() {
   @Serializable data class Render(val type: String)
 }
 
@@ -69,7 +71,7 @@ data class CheckboxWidget(
     val value: Boolean,
     val readonly: Boolean,
     val validator: Validator?,
-    val render: Render,
+    val render: Render?,
 ) : Widget() {
   override fun value(): Boolean {
     return value
@@ -104,7 +106,7 @@ data class SelectWidget(
     val label: String?,
     val value: String?,
     val readonly: Boolean,
-    val render: Render,
+    val render: Render?,
     val options: List<Option>,
     val validator: Validator
 ) : Widget() {
@@ -184,7 +186,7 @@ data class DateWidget(
     val placeholder: String?,
     val readonly: Boolean,
     val value: String?,
-    val render: Render,
+    val render: Render?,
     val validator: Validator?
 ) : Widget() {
   override fun value(): String? {
