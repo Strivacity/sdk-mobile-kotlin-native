@@ -107,7 +107,7 @@ fun StaticWidget(
     formId: String,
     widgetId: String
 ) {
-  TextWithType(loginController, widget.render.type, widget.value)
+  TextWithType(loginController, widget.render?.type, widget.value)
 }
 
 @Composable
@@ -157,9 +157,9 @@ fun SubmitWidget(
   val processing by loginController.processing.collectAsState()
 
   val onClick: () -> Unit = { coroutineScope.launch { loginController.submit(formId) } }
-  when (widget.render.type) {
-    in "button" -> Button(onClick = onClick, enabled = !processing) { Text(widget.label) }
-    in "link" -> TextButton(onClick = onClick, enabled = !processing) { Text(widget.label) }
+  when (widget.render?.type) {
+    "button" -> Button(onClick = onClick, enabled = !processing) { Text(widget.label) }
+    "link" -> TextButton(onClick = onClick, enabled = !processing) { Text(widget.label) }
     else -> loginController.triggerFallback()
   }
 }
@@ -178,15 +178,15 @@ fun CheckboxWidget(
   val processing by loginController.processing.collectAsState()
 
   Row(verticalAlignment = Alignment.CenterVertically) {
-    when (widget.render.type) {
-      in "checkboxShown" -> Checkbox(value, { stateForWidget.value = it }, enabled = !processing)
-      in "checkboxHidden" -> {
+    when (widget.render?.type) {
+      "checkboxShown" -> Checkbox(value, { stateForWidget.value = it }, enabled = !processing)
+      "checkboxHidden" -> {
         LaunchedEffect(Unit) { stateForWidget.value = true }
       }
       else -> loginController.triggerFallback()
     }
 
-    TextWithType(loginController, widget.render.labelType, widget.label)
+    TextWithType(loginController, widget.render?.labelType, widget.label)
   }
 }
 
@@ -248,7 +248,7 @@ fun SelectWidget(
 
   val processing by loginController.processing.collectAsState()
 
-  when (widget.render.type) {
+  when (widget.render?.type) {
     "radio" -> {
       Column(modifier = Modifier.selectableGroup()) {
         if (widget.label != null) {
@@ -419,7 +419,7 @@ fun DateWidget(
 
   val processing by loginController.processing.collectAsState()
 
-  when (widget.render.type) {
+  when (widget.render?.type) {
     "native" -> {
       var showDatePicker by remember { mutableStateOf(false) }
       val datePickerState = rememberDatePickerState()
@@ -561,10 +561,10 @@ fun PhoneWidget(
 }
 
 @Composable
-fun TextWithType(loginController: LoginController, type: String, value: String) {
+fun TextWithType(loginController: LoginController, type: String?, value: String) {
   when (type) {
-    in "text" -> Text(value)
-    in "html" ->
+    "text" -> Text(value)
+    "html" ->
         Text(
             AnnotatedString.fromHtml(
                 value,

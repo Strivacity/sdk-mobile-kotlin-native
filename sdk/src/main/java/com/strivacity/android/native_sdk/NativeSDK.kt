@@ -19,7 +19,8 @@ class NativeSDK(
     private val clientId: String,
     private val redirectURI: String,
     private val postLogoutURI: String,
-    storage: Storage
+    storage: Storage,
+    private val mode: SdkMode = SdkMode.Android
 ) {
   val session: Session = Session(storage)
   var loginController: LoginController? = null
@@ -51,6 +52,7 @@ class NativeSDK(
               parameters.append("nonce", oidcParams.nonce)
               parameters.append("code_challenge", oidcParams.codeChallenge)
               parameters.append("code_challenge_method", "S256")
+              parameters.append("sdk", mode.value)
 
               val scopes = loginParameters?.scopes ?: listOf("openid", "profile")
               parameters.append("scope", scopes.joinToString(separator = " "))
@@ -244,3 +246,8 @@ data class LoginParameters(
     val acrValue: String? = null,
     val scopes: List<String>? = null
 )
+
+enum class SdkMode(val value: String) {
+  Android("android"),
+  AndroidMinimal("android-minimal")
+}

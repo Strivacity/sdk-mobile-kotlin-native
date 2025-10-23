@@ -40,6 +40,7 @@ import com.strivacity.android.native_sdk.HostedFlowCanceledError
 import com.strivacity.android.native_sdk.LoginParameters
 import com.strivacity.android.native_sdk.NativeSDK
 import com.strivacity.android.native_sdk.OidcError
+import com.strivacity.android.native_sdk.SdkMode
 import com.strivacity.android.native_sdk.SessionExpiredError
 import kotlinx.coroutines.launch
 
@@ -67,7 +68,8 @@ fun Main() {
             "android://native-flow",
             "android://native-flow",
             SharedPreferenceStorage(
-                context.getSharedPreferences("kotlin-demo", Context.MODE_PRIVATE))))
+                context.getSharedPreferences("kotlin-demo", Context.MODE_PRIVATE)),
+            mode = SdkMode.AndroidMinimal))
   }
 
   Scaffold(modifier = Modifier.fillMaxSize(), floatingActionButton = { CancelFAB(nativeSDK) }) {
