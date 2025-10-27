@@ -229,6 +229,8 @@ class NativeSDK(
               TokenRefreshParams(refreshToken, clientId))
 
       session.update(tokenResponse)
+    } catch (e: Throwable) {
+      session.clear()
     } catch (e: Exception) {
       session.clear()
     }

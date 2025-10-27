@@ -4,7 +4,6 @@ import android.app.ComponentCaller
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -15,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -35,6 +35,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.strivacity.android.headlessdemo.ui.theme.SdkmobilekotlinnativeTheme
+import com.strivacity.android.headlessdemo.ui.theme.StrivacityPrimary
 import com.strivacity.android.native_sdk.Error
 import com.strivacity.android.native_sdk.HostedFlowCanceledError
 import com.strivacity.android.native_sdk.LoginParameters
@@ -136,41 +137,13 @@ fun Login(nativeSDK: NativeSDK) {
     Text("Loading...")
   } else {
     if (profile != null) {
-      Column {
-        Text("Hello ${profile!!.claims["given_name"]}")
-        Button(onClick = { coroutineScope.launch { nativeSDK.logout() } }) { Text("Logout") }
-
-        Button(
-            onClick = {
-              coroutineScope.launch {
-                try {
-                  val accessToken = nativeSDK.getAccessToken()
-                  println(nativeSDK.getAccessToken())
-                  Toast.makeText(context, accessToken, Toast.LENGTH_LONG).show()
-                } catch (e: Exception) {
-                  Toast.makeText(context, "Unable to fetch access token", Toast.LENGTH_LONG).show()
-                }
-              }
-            }) {
-              Text("Get Access Token")
-            }
-
-        Button(
-            onClick = {
-              coroutineScope.launch {
-                val idToken = profile!!.idToken
-                println(idToken)
-                Toast.makeText(context, idToken, Toast.LENGTH_LONG).show()
-              }
-            }) {
-              Text("Get ID Token")
-            }
-      }
+      ProfileView(nativeSDK)
     } else if (loginInProgress) {
       LoginScreen(nativeSDK)
     } else {
       Column {
         Button(
+            colors = ButtonDefaults.buttonColors(containerColor = StrivacityPrimary),
             onClick = {
               coroutineScope.launch {
                 error = null
@@ -179,7 +152,7 @@ fun Login(nativeSDK: NativeSDK) {
                       context,
                       {},
                       { error = it },
-                      LoginParameters(scopes = listOf("openid", "profile", "offline")))
+                      LoginParameters(scopes = listOf("openid", "profile", "email", "offline")))
                 } catch (e: Error) {
                   error = e
                 }

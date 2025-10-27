@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -26,10 +25,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.strivacity.android.headlessdemo.ui.theme.StrivacityPrimary
+import com.strivacity.android.headlessdemo.ui.theme.StrivacitySecondary
 import com.strivacity.android.native_sdk.HeadlessAdapter
 import com.strivacity.android.native_sdk.render.models.GlobalMessages
 import com.strivacity.android.native_sdk.render.models.Screen
@@ -37,31 +36,12 @@ import com.strivacity.android.native_sdk.render.models.StaticWidget
 import kotlinx.coroutines.launch
 
 @Composable
-fun PasswordView(screen: Screen, headlessAdapter: HeadlessAdapter) {
+fun MFAEnrollChallengeView(screen: Screen, headlessAdapter: HeadlessAdapter) {
   val messages by headlessAdapter.messages().collectAsState()
 
   val coroutineScope = rememberCoroutineScope()
 
-  var password by remember { mutableStateOf("") }
-  var keepMeLoggedIn by remember {
-    mutableStateOf(
-        screen.forms
-            ?.find { it.id == "password" }
-            ?.widgets
-            ?.find { it.id == "keepMeLoggedIn" }
-            ?.value() as Boolean? ?: false)
-  }
-
-  val identifierWidget =
-      screen.forms?.find { it.id == "reset" }?.widgets?.find { it.id == "identifier" }
-
-  val identifier =
-      when (identifierWidget) {
-        is StaticWidget -> {
-          identifierWidget.value
-        }
-        else -> ""
-      }
+  var passcode by remember { mutableStateOf("") }
 
   var globalShowed by remember { mutableStateOf(false) }
   if (messages is GlobalMessages) {
@@ -77,43 +57,34 @@ fun PasswordView(screen: Screen, headlessAdapter: HeadlessAdapter) {
       horizontalAlignment = Alignment.CenterHorizontally,
       verticalArrangement = Arrangement.spacedBy(10.dp),
       modifier = Modifier.fillMaxWidth().padding(35.dp)) {
-        Text("Enter password", fontSize = 24.sp, fontWeight = FontWeight.W600)
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
+        Text(
+            (screen.forms
+                    ?.find { it.id == "mfaEnrollChallenge" }
+                    ?.widgets
+                    ?.find { it.id == "section-title" } as StaticWidget?)
+                ?.value ?: "Verify your authenticator",
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center) {
-              Text(identifier)
-              TextButton(
-                  onClick = {
-                    coroutineScope.launch {
-                      globalShowed = false
-                      headlessAdapter.submit("reset", mapOf())
-                    }
-                  }) {
-                    Text("Not you?")
-                  }
-            }
+            fontSize = 24.sp,
+            fontWeight = FontWeight.W600)
+
+        Text(
+            (screen.forms
+                    ?.find { it.id == "mfaEnrollChallenge" }
+                    ?.widgets
+                    ?.find { it.id == "we-sent-a-passcode-to" } as StaticWidget?)
+                ?.value ?: "",
+            modifier = Modifier.fillMaxWidth())
 
         TextField(
-            value = password,
-            onValueChange = { password = it },
-            label = { Text("Enter your password") },
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            value = passcode,
+            onValueChange = { passcode = it },
+            label = { Text("6-digit passcode") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.fillMaxWidth())
-        val errorMessage = messages?.errorMessageForWidget("password", "password")
-        if (errorMessage != null) {
-          Text(errorMessage, color = Color.Red, modifier = Modifier.fillMaxWidth())
+        val passcodeErrorMessage = messages?.errorMessageForWidget("mfaEnrollChallenge", "passcode")
+        if (passcodeErrorMessage != null) {
+          Text(passcodeErrorMessage, color = Color.Red, modifier = Modifier.fillMaxWidth())
         }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Start,
-            verticalAlignment = Alignment.CenterVertically) {
-              Checkbox(keepMeLoggedIn, { keepMeLoggedIn = it })
-              Text("Keep me logged in")
-            }
 
         Button(
             modifier = Modifier.fillMaxWidth(),
@@ -121,23 +92,41 @@ fun PasswordView(screen: Screen, headlessAdapter: HeadlessAdapter) {
             onClick = {
               coroutineScope.launch {
                 globalShowed = false
-                headlessAdapter.submit(
-                    "password", mapOf("password" to password, "keepMeLoggedIn" to keepMeLoggedIn))
+                headlessAdapter.submit("mfaEnrollChallenge", mapOf("passcode" to passcode))
               }
             }) {
-              Text("Continue")
+              Text("Confirm")
             }
 
-        //        TextButton(
-        //            modifier = Modifier.fillMaxWidth(),
-        //            onClick = {
-        //              coroutineScope.launch {
-        //                globalShowed = false
-        //                headlessAdapter.submit("additionalActions/forgottenPassword", mapOf())
-        //              }
-        //            }) {
-        //              Text("Forgot your password?")
-        //            }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center) {
+              Text("Didn't receive the email?")
+              TextButton(
+                  onClick = {
+                    coroutineScope.launch {
+                      globalShowed = false
+                      headlessAdapter.submit("additionalActions/resend", mapOf())
+                    }
+                  }) {
+                    Text("Resend")
+                  }
+            }
+
+        Button(
+            modifier = Modifier.fillMaxWidth(),
+            colors =
+                ButtonDefaults.buttonColors(
+                    containerColor = StrivacitySecondary, contentColor = Color.Black),
+            onClick = {
+              coroutineScope.launch {
+                globalShowed = false
+                headlessAdapter.submit("additionalActions/selectDifferentMethod", mapOf())
+              }
+            }) {
+              Text("Select different method to enroll")
+            }
 
         TextButton(
             onClick = {
