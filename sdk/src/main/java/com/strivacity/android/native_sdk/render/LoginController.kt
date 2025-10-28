@@ -87,7 +87,7 @@ internal constructor(
       this._messages.value = screen.messages
       updateFormValues(screen.forms)
     } else {
-      this._screen.value?.messages = screen.messages
+      this._screen.value = this._screen.value?.copy(messages = screen.messages)
       this._messages.value = screen.messages
     }
   }
