@@ -48,12 +48,12 @@ class HeadlessAdapter {
     if (Objects.equals(currentScreen?.screen, newScreen?.screen) &&
         Objects.equals(currentScreen?.forms, newScreen?.forms) &&
         Objects.equals(currentScreen?.layout, newScreen?.layout) &&
-        Objects.equals(currentScreen?.messages, newScreen?.messages)) {
+        !Objects.equals(currentScreen?.messages, newScreen?.messages)) {
       delegate.refreshScreen(getScreen())
       return
     }
 
-    delegate.refreshScreen(getScreen())
+    delegate.renderScreen(getScreen())
   }
 
   fun messages(): StateFlow<Messages?> {
