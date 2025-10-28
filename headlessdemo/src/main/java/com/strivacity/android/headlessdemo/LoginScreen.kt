@@ -6,8 +6,15 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import com.strivacity.android.headlessdemo.login.GenericResultView
 import com.strivacity.android.headlessdemo.login.IdentificationView
+import com.strivacity.android.headlessdemo.login.MFAEnrollChallengeView
+import com.strivacity.android.headlessdemo.login.MFAEnrollStartView
+import com.strivacity.android.headlessdemo.login.MFAEnrollTargetSelectView
+import com.strivacity.android.headlessdemo.login.MFAMethodView
+import com.strivacity.android.headlessdemo.login.MFAPasscode
 import com.strivacity.android.headlessdemo.login.PasswordView
+import com.strivacity.android.headlessdemo.login.RegistrationView
 import com.strivacity.android.native_sdk.HeadlessAdapter
 import com.strivacity.android.native_sdk.HeadlessAdapterDelegate
 import com.strivacity.android.native_sdk.NativeSDK
@@ -35,6 +42,27 @@ fun LoginScreen(nativeSDK: NativeSDK) {
       }
       "password" -> {
         PasswordView(screen!!, headlessAdapter)
+      }
+      "registration" -> {
+        RegistrationView(screen!!, headlessAdapter)
+      }
+      "mfaEnrollStart" -> {
+        MFAEnrollStartView(screen!!, headlessAdapter)
+      }
+      "mfaEnrollTargetSelect" -> {
+        MFAEnrollTargetSelectView(screen!!, headlessAdapter)
+      }
+      "mfaEnrollChallenge" -> {
+        MFAEnrollChallengeView(screen!!, headlessAdapter)
+      }
+      "genericResult" -> {
+        GenericResultView(screen!!, headlessAdapter)
+      }
+      "mfaMethod" -> {
+        MFAMethodView(screen!!, headlessAdapter)
+      }
+      "mfaPasscode" -> {
+        MFAPasscode(screen!!, headlessAdapter)
       }
       else -> {
         Text("Unknown screen")

@@ -32,8 +32,9 @@
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data
-                    android:scheme="android"
-                    android:host="native-flow" />
+                    android:scheme="com.strivacity.demoapp"
+                    android:host="oauth"
+                    android:path="/callback"/>
             </intent-filter>
         </activity>
 

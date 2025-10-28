@@ -6,13 +6,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -25,8 +23,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.strivacity.android.headlessdemo.ui.theme.StrivacityPrimary
@@ -37,20 +33,10 @@ import com.strivacity.android.native_sdk.render.models.StaticWidget
 import kotlinx.coroutines.launch
 
 @Composable
-fun PasswordView(screen: Screen, headlessAdapter: HeadlessAdapter) {
+fun MFAEnrollStartView(screen: Screen, headlessAdapter: HeadlessAdapter) {
   val messages by headlessAdapter.messages().collectAsState()
 
   val coroutineScope = rememberCoroutineScope()
-
-  var password by remember { mutableStateOf("") }
-  var keepMeLoggedIn by remember {
-    mutableStateOf(
-        screen.forms
-            ?.find { it.id == "password" }
-            ?.widgets
-            ?.find { it.id == "keepMeLoggedIn" }
-            ?.value() as Boolean? ?: false)
-  }
 
   val identifierWidget =
       screen.forms?.find { it.id == "reset" }?.widgets?.find { it.id == "identifier" }
@@ -62,6 +48,9 @@ fun PasswordView(screen: Screen, headlessAdapter: HeadlessAdapter) {
         }
         else -> ""
       }
+
+  var email by remember { mutableStateOf(false) }
+  var phone by remember { mutableStateOf(false) }
 
   var globalShowed by remember { mutableStateOf(false) }
   if (messages is GlobalMessages) {
@@ -77,7 +66,10 @@ fun PasswordView(screen: Screen, headlessAdapter: HeadlessAdapter) {
       horizontalAlignment = Alignment.CenterHorizontally,
       verticalArrangement = Arrangement.spacedBy(10.dp),
       modifier = Modifier.fillMaxWidth().padding(35.dp)) {
-        Text("Enter password", fontSize = 24.sp, fontWeight = FontWeight.W600)
+        Text(
+            "Enroll the following authentication methods",
+            fontSize = 24.sp,
+            fontWeight = FontWeight.W600)
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -95,49 +87,39 @@ fun PasswordView(screen: Screen, headlessAdapter: HeadlessAdapter) {
                   }
             }
 
-        TextField(
-            value = password,
-            onValueChange = { password = it },
-            label = { Text("Enter your password") },
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            modifier = Modifier.fillMaxWidth())
-        val errorMessage = messages?.errorMessageForWidget("password", "password")
+        Text("Choose at least one method", modifier = Modifier.fillMaxWidth())
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+          Checkbox(email, onCheckedChange = { email = it })
+          Text("Email address")
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+          Checkbox(phone, onCheckedChange = { phone = it })
+          Text("Phone number")
+        }
+        val errorMessage = messages?.errorMessageForWidget("mfaEnrollStart", "optional")
         if (errorMessage != null) {
           Text(errorMessage, color = Color.Red, modifier = Modifier.fillMaxWidth())
         }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Start,
-            verticalAlignment = Alignment.CenterVertically) {
-              Checkbox(keepMeLoggedIn, { keepMeLoggedIn = it })
-              Text("Keep me logged in")
-            }
 
         Button(
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = StrivacityPrimary),
             onClick = {
               coroutineScope.launch {
+                val optionals = mutableListOf<String>()
+                if (email) {
+                  optionals.add("email")
+                }
+                if (phone) {
+                  optionals.add("phone")
+                }
+
                 globalShowed = false
-                headlessAdapter.submit(
-                    "password", mapOf("password" to password, "keepMeLoggedIn" to keepMeLoggedIn))
+                headlessAdapter.submit("mfaEnrollStart", mapOf("optional" to optionals))
               }
             }) {
               Text("Continue")
             }
-
-        //        TextButton(
-        //            modifier = Modifier.fillMaxWidth(),
-        //            onClick = {
-        //              coroutineScope.launch {
-        //                globalShowed = false
-        //                headlessAdapter.submit("additionalActions/forgottenPassword", mapOf())
-        //              }
-        //            }) {
-        //              Text("Forgot your password?")
-        //            }
 
         TextButton(
             onClick = {
