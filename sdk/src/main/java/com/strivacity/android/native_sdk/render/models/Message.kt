@@ -1,7 +1,9 @@
 package com.strivacity.android.native_sdk.render.models
 
+import java.time.Instant
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.descriptors.SerialDescriptor
@@ -23,7 +25,13 @@ sealed class Messages {
   }
 }
 
-@Serializable data class GlobalMessages(val global: Message) : Messages()
+// Note: receivedAt is needed so when publishing in a `MutableStateFlow` it will trigger even when
+// the messages is the same
+@Serializable
+data class GlobalMessages(
+    val global: Message,
+    @Transient private val receivedAt: Instant = Instant.now()
+) : Messages()
 
 @Serializable data class FormMessages(val form: Map<String, Map<String, Message>>) : Messages()
 
