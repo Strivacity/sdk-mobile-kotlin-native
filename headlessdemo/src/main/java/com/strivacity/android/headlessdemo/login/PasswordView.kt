@@ -1,6 +1,5 @@
 package com.strivacity.android.headlessdemo.login
 
-import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,7 +22,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -31,7 +29,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.strivacity.android.headlessdemo.ui.theme.StrivacityPrimary
 import com.strivacity.android.native_sdk.HeadlessAdapter
-import com.strivacity.android.native_sdk.render.models.GlobalMessages
 import com.strivacity.android.native_sdk.render.models.Screen
 import com.strivacity.android.native_sdk.render.models.StaticWidget
 import kotlinx.coroutines.launch
@@ -63,16 +60,6 @@ fun PasswordView(screen: Screen, headlessAdapter: HeadlessAdapter) {
         else -> ""
       }
 
-  var globalShowed by remember { mutableStateOf(false) }
-  if (messages is GlobalMessages) {
-    if (!globalShowed) {
-      globalShowed = true
-      Toast.makeText(
-              LocalContext.current, (messages as GlobalMessages).global.text, Toast.LENGTH_SHORT)
-          .show()
-    }
-  }
-
   Column(
       horizontalAlignment = Alignment.CenterHorizontally,
       verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -86,10 +73,7 @@ fun PasswordView(screen: Screen, headlessAdapter: HeadlessAdapter) {
               Text(identifier)
               TextButton(
                   onClick = {
-                    coroutineScope.launch {
-                      globalShowed = false
-                      headlessAdapter.submit("reset", mapOf())
-                    }
+                    coroutineScope.launch { headlessAdapter.submit("reset", mapOf()) }
                   }) {
                     Text("Not you?")
                   }
@@ -120,7 +104,6 @@ fun PasswordView(screen: Screen, headlessAdapter: HeadlessAdapter) {
             colors = ButtonDefaults.buttonColors(containerColor = StrivacityPrimary),
             onClick = {
               coroutineScope.launch {
-                globalShowed = false
                 headlessAdapter.submit(
                     "password", mapOf("password" to password, "keepMeLoggedIn" to keepMeLoggedIn))
               }
@@ -128,24 +111,8 @@ fun PasswordView(screen: Screen, headlessAdapter: HeadlessAdapter) {
               Text("Continue")
             }
 
-        //        TextButton(
-        //            modifier = Modifier.fillMaxWidth(),
-        //            onClick = {
-        //              coroutineScope.launch {
-        //                globalShowed = false
-        //                headlessAdapter.submit("additionalActions/forgottenPassword", mapOf())
-        //              }
-        //            }) {
-        //              Text("Forgot your password?")
-        //            }
-
         TextButton(
-            onClick = {
-              coroutineScope.launch {
-                globalShowed = false
-                headlessAdapter.submit("reset", mapOf())
-              }
-            }) {
+            onClick = { coroutineScope.launch { headlessAdapter.submit("reset", mapOf()) } }) {
               Text("Back to login")
             }
       }

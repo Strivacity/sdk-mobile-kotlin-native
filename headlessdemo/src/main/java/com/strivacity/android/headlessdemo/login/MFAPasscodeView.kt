@@ -1,6 +1,5 @@
 package com.strivacity.android.headlessdemo.login
 
-import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,7 +21,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -30,7 +28,6 @@ import androidx.compose.ui.unit.sp
 import com.strivacity.android.headlessdemo.ui.theme.StrivacityPrimary
 import com.strivacity.android.headlessdemo.ui.theme.StrivacitySecondary
 import com.strivacity.android.native_sdk.HeadlessAdapter
-import com.strivacity.android.native_sdk.render.models.GlobalMessages
 import com.strivacity.android.native_sdk.render.models.Screen
 import com.strivacity.android.native_sdk.render.models.StaticWidget
 import kotlinx.coroutines.launch
@@ -43,15 +40,6 @@ fun MFAPasscode(screen: Screen, headlessAdapter: HeadlessAdapter) {
 
   var passcode by remember { mutableStateOf("") }
 
-  var globalShowed by remember { mutableStateOf(false) }
-  if (messages is GlobalMessages) {
-    if (!globalShowed) {
-      globalShowed = true
-      Toast.makeText(
-              LocalContext.current, (messages as GlobalMessages).global.text, Toast.LENGTH_SHORT)
-          .show()
-    }
-  }
   Column(
       horizontalAlignment = Alignment.CenterHorizontally,
       verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -90,7 +78,6 @@ fun MFAPasscode(screen: Screen, headlessAdapter: HeadlessAdapter) {
             colors = ButtonDefaults.buttonColors(containerColor = StrivacityPrimary),
             onClick = {
               coroutineScope.launch {
-                globalShowed = false
                 headlessAdapter.submit("mfaPasscode", mapOf("passcode" to passcode))
               }
             }) {
@@ -105,7 +92,6 @@ fun MFAPasscode(screen: Screen, headlessAdapter: HeadlessAdapter) {
               TextButton(
                   onClick = {
                     coroutineScope.launch {
-                      globalShowed = false
                       headlessAdapter.submit("additionalActions/resend", mapOf())
                     }
                   }) {
@@ -120,7 +106,6 @@ fun MFAPasscode(screen: Screen, headlessAdapter: HeadlessAdapter) {
                     containerColor = StrivacitySecondary, contentColor = Color.Black),
             onClick = {
               coroutineScope.launch {
-                globalShowed = false
                 headlessAdapter.submit("additionalActions/selectDifferentMethod", mapOf())
               }
             }) {
@@ -128,12 +113,7 @@ fun MFAPasscode(screen: Screen, headlessAdapter: HeadlessAdapter) {
             }
 
         TextButton(
-            onClick = {
-              coroutineScope.launch {
-                globalShowed = false
-                headlessAdapter.submit("reset", mapOf())
-              }
-            }) {
+            onClick = { coroutineScope.launch { headlessAdapter.submit("reset", mapOf()) } }) {
               Text("Back to login")
             }
       }

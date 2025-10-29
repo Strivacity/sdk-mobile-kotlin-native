@@ -8,6 +8,22 @@ This SDK allows you to integrate Strivacity's policy-driven journeys into your b
 
 The SDK uses the [PKCE extension to OAuth](https://tools.ietf.org/html/rfc7636) to ensure the secure exchange of authorization codes in public clients.
 
+## How to use
+
+Strivacity SDK for Android with Jetpack Compose UI is available on [Github Packages](https://github.com/orgs/Strivacity/packages?repo_name=sdk-mobile-kotlin-native).
+
+Add the following maven repository to `settings.gradle.kts`
+```kotlin
+maven {
+    url = uri("https://maven.pkg.github.com/Strivacity/sdk-mobile-kotlin-native")
+}
+```
+
+Add the sdk as a dependency to the project:
+```kotlin
+implementation("com.strivacity.android:kotlin_native_sdk:<version>")
+```
+
 ## Demo Application
 
 A demo application is available in the `demoapplication` folder.

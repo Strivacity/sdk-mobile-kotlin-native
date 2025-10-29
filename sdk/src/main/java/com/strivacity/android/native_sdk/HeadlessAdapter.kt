@@ -4,9 +4,15 @@ import com.strivacity.android.native_sdk.render.LoginController
 import com.strivacity.android.native_sdk.render.models.Messages
 import com.strivacity.android.native_sdk.render.models.Screen
 import java.util.Objects
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
 class HeadlessAdapter {
+  private val scope = CoroutineScope(Dispatchers.Main)
+
   private val nativeSDK: NativeSDK
   private val loginController: LoginController
 
@@ -21,6 +27,28 @@ class HeadlessAdapter {
     }
 
     loginController = nativeSDK.loginController!!
+
+    scope.launch {
+      var oldScreen = loginController.screen.value
+      loginController.screen.collectLatest { _ ->
+        if (!nativeSDK.session.loginInProgress.value) {
+          return@collectLatest
+        }
+        var currentScreen = oldScreen
+        val newScreen = loginController.screen.value
+        oldScreen = newScreen
+
+        if (Objects.equals(currentScreen?.screen, newScreen?.screen) &&
+            Objects.equals(currentScreen?.forms, newScreen?.forms) &&
+            Objects.equals(currentScreen?.layout, newScreen?.layout) &&
+            !Objects.equals(currentScreen?.messages, newScreen?.messages)) {
+          delegate.refreshScreen(getScreen())
+          return@collectLatest
+        }
+
+        delegate.renderScreen(getScreen())
+      }
+    }
   }
 
   fun initialize() {
@@ -36,24 +64,7 @@ class HeadlessAdapter {
   }
 
   suspend fun submit(formId: String, body: Map<String, Any>) {
-    val currentScreen = loginController.screen.value
     loginController.submit(formId, body)
-
-    if (!nativeSDK.session.loginInProgress.value) {
-      return
-    }
-
-    val newScreen = loginController.screen.value
-
-    if (Objects.equals(currentScreen?.screen, newScreen?.screen) &&
-        Objects.equals(currentScreen?.forms, newScreen?.forms) &&
-        Objects.equals(currentScreen?.layout, newScreen?.layout) &&
-        !Objects.equals(currentScreen?.messages, newScreen?.messages)) {
-      delegate.refreshScreen(getScreen())
-      return
-    }
-
-    delegate.renderScreen(getScreen())
   }
 
   fun messages(): StateFlow<Messages?> {
