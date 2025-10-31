@@ -32,6 +32,20 @@ data class SubmitWidget(override val id: String, val label: String, val render: 
 }
 
 @Serializable
+@SerialName("close")
+data class CloseWidget(override val id: String, val label: String, val render: Render?) : Widget() {
+  @Serializable
+  data class Render(
+      val type: String,
+      val textColor: String?,
+      val bgColor: String?,
+      val hint: CloseWidgetHint?
+  ) {
+    @Serializable data class CloseWidgetHint(val icon: String?, val variant: String?)
+  }
+}
+
+@Serializable
 @SerialName("static")
 data class StaticWidget(override val id: String, val value: String, val render: Render?) :
     Widget() {
