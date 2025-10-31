@@ -178,7 +178,7 @@ fun CloseWidget(
 
   val processing by loginController.processing.collectAsState()
 
-  val onClick: () -> Unit = { coroutineScope.launch { loginController.submit(formId) } }
+  val onClick: () -> Unit = { coroutineScope.launch { loginController.close() } }
   when (widget.render?.type) {
     "button" -> Button(onClick = onClick, enabled = !processing) { Text(widget.label) }
     "link" -> TextButton(onClick = onClick, enabled = !processing) { Text(widget.label) }

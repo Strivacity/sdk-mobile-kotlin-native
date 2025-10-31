@@ -39,6 +39,10 @@ internal constructor(
     updateScreen(loginHandlerService.initCall())
   }
 
+  fun close() {
+    nativeSDK.cancelFlow()
+  }
+
   suspend fun submit(formId: String) {
     val body =
         when (val map = forms.value[formId]) {
