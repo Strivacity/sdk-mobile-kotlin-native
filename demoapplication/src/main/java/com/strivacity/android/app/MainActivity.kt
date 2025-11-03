@@ -1,5 +1,6 @@
 package com.strivacity.android.app
 
+import android.annotation.SuppressLint
 import android.app.ComponentCaller
 import android.content.Context
 import android.content.Intent
@@ -22,6 +23,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.lifecycleScope
 import com.strivacity.android.app.ui.theme.SdkmobilekotlinnativeTheme
 import com.strivacity.android.native_sdk.Error
 import com.strivacity.android.native_sdk.HostedFlowCanceledError
@@ -41,11 +44,16 @@ import com.strivacity.android.native_sdk.LoginParameters
 import com.strivacity.android.native_sdk.NativeSDK
 import com.strivacity.android.native_sdk.OidcError
 import com.strivacity.android.native_sdk.SessionExpiredError
+import com.strivacity.android.native_sdk.UnknownError
 import com.strivacity.android.native_sdk.render.LoginController
-import com.strivacity.android.native_sdk.render.models.*
+import com.strivacity.android.native_sdk.render.models.GlobalMessages
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+
+  private lateinit var nativeSDK: MutableState<NativeSDK>
+
+  val ENTRY_URL: String = "https://tamala-subvertebral-ben.ngrok-free.app/entry"
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -54,32 +62,45 @@ class MainActivity : ComponentActivity() {
     setContent { SdkmobilekotlinnativeTheme { Main() } }
   }
 
+  override fun onResume() {
+    super.onResume()
+    if (intent.data?.toString()?.startsWith(ENTRY_URL) == true) {
+      val challenge = intent.data?.getQueryParameter("challenge")
+      if (challenge == null || challenge.trim().isEmpty()) {
+        throw UnknownError(RuntimeException("Entry challenge parameter is missing"))
+      }
+
+      lifecycleScope.launch { nativeSDK.value.entry(challenge) }
+    }
+  }
+
   override fun onNewIntent(intent: Intent, caller: ComponentCaller) {
     super.onNewIntent(intent, caller)
     setIntent(intent)
   }
-}
 
-@Composable
-fun Main() {
-  val context = LocalContext.current
-  val nativeSDK by remember {
-    mutableStateOf(
-        NativeSDK(
-            "https://tamas-krisko.strivacity.cloud/",
-            "a15dd605b2a14574913d2cc60d4216e3",
-            "android://native-flow",
-            "android://native-flow",
-            SharedPreferenceStorage(
-                context.getSharedPreferences("kotlin-demo", Context.MODE_PRIVATE))))
-  }
+  @SuppressLint("UnrememberedMutableState")
+  @Composable
+  fun Main() {
+    val context = LocalContext.current
+    nativeSDK =
+        mutableStateOf(
+            NativeSDK(
+                "https://tamas-krisko.strivacity.cloud/",
+                "a15dd605b2a14574913d2cc60d4216e3",
+                "android://native-flow",
+                "android://native-flow",
+                SharedPreferenceStorage(
+                    context.getSharedPreferences("kotlin-demo", Context.MODE_PRIVATE))))
 
-  Scaffold(modifier = Modifier.fillMaxSize(), floatingActionButton = { CancelFAB(nativeSDK) }) {
-      innerPadding ->
-    Box(
-        modifier = Modifier.fillMaxSize().padding(innerPadding),
-        contentAlignment = Alignment.Center) {
-          Login(nativeSDK)
+    Scaffold(
+        modifier = Modifier.fillMaxSize(), floatingActionButton = { CancelFAB(nativeSDK.value) }) {
+            innerPadding ->
+          Box(
+              modifier = Modifier.fillMaxSize().padding(innerPadding),
+              contentAlignment = Alignment.Center) {
+                Login(nativeSDK.value)
+              }
         }
   }
 }

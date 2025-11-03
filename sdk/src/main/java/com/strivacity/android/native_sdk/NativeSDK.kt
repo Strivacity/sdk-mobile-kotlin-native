@@ -9,6 +9,7 @@ import com.strivacity.android.native_sdk.service.OIDCHandlerService
 import com.strivacity.android.native_sdk.service.OidcParams
 import com.strivacity.android.native_sdk.service.TokenExchangeParams
 import com.strivacity.android.native_sdk.service.TokenRefreshParams
+import io.ktor.client.request.post
 import io.ktor.http.Parameters
 import io.ktor.http.URLBuilder
 import io.ktor.http.path
@@ -90,6 +91,20 @@ class NativeSDK(
     } catch (e: Exception) {
       onError(UnknownError(e))
     }
+  }
+
+  suspend fun entry(challenge: String) {
+
+    val httpResponse =
+        httpService.post(
+            URLBuilder(issuer)
+                .apply {
+                  path("/provider/flow/entry")
+                  parameters.append("challenge", challenge)
+                  parameters.append("client_id", clientId)
+                  parameters.append("redirect_uri", redirectURI)
+                }
+                .build())
   }
 
   suspend fun isAuthenticated(): Boolean {
