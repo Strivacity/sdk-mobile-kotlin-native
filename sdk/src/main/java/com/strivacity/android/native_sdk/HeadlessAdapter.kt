@@ -6,22 +6,29 @@ import com.strivacity.android.native_sdk.render.models.Screen
 import java.util.Objects
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class HeadlessAdapter {
-  private val scope = CoroutineScope(Dispatchers.Main)
+  private val scope: CoroutineScope
 
   private val nativeSDK: NativeSDK
   private val loginController: LoginController
 
   private val delegate: HeadlessAdapterDelegate
 
-  constructor(nativeSDK: NativeSDK, delegate: HeadlessAdapterDelegate) {
+  constructor(
+      nativeSDK: NativeSDK,
+      delegate: HeadlessAdapterDelegate,
+      scope: CoroutineScope = MainScope()
+  ) {
     this.nativeSDK = nativeSDK
     this.delegate = delegate
+    this.scope = scope
 
     if (nativeSDK.loginController == null) {
       error("No login in progress")
@@ -51,6 +58,8 @@ class HeadlessAdapter {
       }
     }
   }
+
+  fun dispose() = scope.cancel()
 
   fun initialize() {
     delegate.renderScreen(getScreen())

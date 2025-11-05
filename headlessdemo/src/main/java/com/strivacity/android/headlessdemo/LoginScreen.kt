@@ -3,6 +3,7 @@ package com.strivacity.android.headlessdemo
 import android.widget.Toast
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -49,6 +50,8 @@ fun LoginScreen(nativeSDK: NativeSDK) {
   }
 
   LaunchedEffect(Unit) { headlessAdapter.initialize() }
+
+  DisposableEffect(Unit) { onDispose { headlessAdapter.dispose() } }
 
   val screen by loginScreenModel.screen.collectAsState()
 
