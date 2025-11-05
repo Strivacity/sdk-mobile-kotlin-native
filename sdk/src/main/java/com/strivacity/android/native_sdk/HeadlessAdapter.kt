@@ -9,6 +9,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class HeadlessAdapter {
   private val scope = CoroutineScope(Dispatchers.Main)
@@ -63,9 +64,8 @@ class HeadlessAdapter {
     return loginController.screen.value!!
   }
 
-  suspend fun submit(formId: String, body: Map<String, Any>) {
-    loginController.submit(formId, body)
-  }
+  suspend fun submit(formId: String, body: Map<String, Any>) =
+      withContext(Dispatchers.IO) { loginController.submit(formId, body) }
 
   fun messages(): StateFlow<Messages?> {
     return loginController.messages
