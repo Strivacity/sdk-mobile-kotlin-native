@@ -4,6 +4,7 @@ import android.app.ComponentCaller
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -181,7 +182,11 @@ fun Login(nativeSDK: NativeSDK) {
 
   LaunchedEffect(Unit) {
     coroutineScope.launch {
-      nativeSDK.initializeSession()
+      try {
+        nativeSDK.initializeSession()
+      } catch (e: Throwable) {
+        Toast.makeText(context, "Failed to initialize ${e.message}", Toast.LENGTH_SHORT).show()
+      }
       loading = false
     }
   }

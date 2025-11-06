@@ -148,10 +148,13 @@ fun Login(nativeSDK: NativeSDK) {
               coroutineScope.launch {
                 try {
                   val accessToken = nativeSDK.getAccessToken()
-                  println(nativeSDK.getAccessToken())
+                  // println(accessToken) // uncomment to fetch access token from the log during
+                  // development
                   Toast.makeText(context, accessToken, Toast.LENGTH_LONG).show()
-                } catch (e: Exception) {
-                  Toast.makeText(context, "Unable to fetch access token", Toast.LENGTH_LONG).show()
+                } catch (e: Throwable) {
+                  Toast.makeText(
+                          context, "Unable to fetch access token ${e.message}", Toast.LENGTH_LONG)
+                      .show()
                 }
               }
             }) {
@@ -210,7 +213,11 @@ fun Login(nativeSDK: NativeSDK) {
 
   LaunchedEffect(Unit) {
     coroutineScope.launch {
-      nativeSDK.initializeSession()
+      try {
+        nativeSDK.initializeSession()
+      } catch (e: Throwable) {
+        Toast.makeText(context, "Failed to initialize ${e.message}", Toast.LENGTH_SHORT).show()
+      }
       loading = false
     }
   }

@@ -1,5 +1,6 @@
 package com.strivacity.android.headlessdemo
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.strivacity.android.headlessdemo.ui.theme.StrivacityPrimary
@@ -28,6 +30,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun ProfileView(nativeSDK: NativeSDK) {
   val coroutineScope = rememberCoroutineScope()
+  val context = LocalContext.current
 
   var accessToken by remember { mutableStateOf("") }
 
@@ -59,7 +62,10 @@ fun ProfileView(nativeSDK: NativeSDK) {
     coroutineScope.launch {
       try {
         accessToken = nativeSDK.getAccessToken() ?: ""
-      } catch (e: Exception) {}
+      } catch (e: Throwable) {
+        Toast.makeText(context, "Failed to fetch access_token ${e.message}", Toast.LENGTH_SHORT)
+            .show()
+      }
     }
   }
 }
