@@ -3,7 +3,6 @@ package com.strivacity.android.native_sdk
 import com.strivacity.android.native_sdk.render.LoginController
 import com.strivacity.android.native_sdk.render.models.Messages
 import com.strivacity.android.native_sdk.render.models.Screen
-import java.util.Objects
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
@@ -46,10 +45,10 @@ class HeadlessAdapter {
         val newScreen = loginController.screen.value
         oldScreen = newScreen
 
-        if (Objects.equals(currentScreen?.screen, newScreen?.screen) &&
-            Objects.equals(currentScreen?.forms, newScreen?.forms) &&
-            Objects.equals(currentScreen?.layout, newScreen?.layout) &&
-            !Objects.equals(currentScreen?.messages, newScreen?.messages)) {
+        if (currentScreen?.screen == newScreen?.screen &&
+            currentScreen?.forms == newScreen?.forms &&
+            currentScreen?.layout == newScreen?.layout &&
+            currentScreen?.messages != newScreen?.messages) {
           delegate.refreshScreen(getScreen())
           return@collectLatest
         }
