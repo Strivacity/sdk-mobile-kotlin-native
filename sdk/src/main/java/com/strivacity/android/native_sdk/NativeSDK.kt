@@ -204,10 +204,26 @@ class NativeSDK(
               URLBuilder(issuer).apply { path("/oauth2/token") }.toString(),
               TokenExchangeParams(code, oidcParams.codeVerifier, redirectURI, clientId))
 
-      val responseNonce = extractClaims(tokenResponse)["nonce"] as? String
+      val claims = extractClaims(tokenResponse)
+      val responseNonce = claims["nonce"] as? String
       if (responseNonce == null || oidcParams.nonce != responseNonce) {
         cleanup()
         oidcParams.onError(InvalidCallbackError("Nonce param did not matched expected value"))
+        return
+      }
+
+      val responseIssuer = claims["iss"] as? String
+      val normalizedIssuer = if (issuer.endsWith("/")) issuer else "$issuer/"
+      if (responseIssuer == null || normalizedIssuer != responseIssuer) {
+        cleanup()
+        oidcParams.onError(InvalidCallbackError("Issuer param did not matched expected value"))
+        return
+      }
+
+      val responseAudience = claims["aud"] as? List<*>
+      if (responseAudience == null || !responseAudience.contains(clientId)) {
+        cleanup()
+        oidcParams.onError(InvalidCallbackError("Audience param did not matched expected value"))
         return
       }
 
