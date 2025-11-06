@@ -16,6 +16,8 @@ import java.lang.ref.WeakReference
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 class NativeSDK(
@@ -31,6 +33,8 @@ class NativeSDK(
 
   private val httpService = HttpService()
   private val oidcHandlerService = OIDCHandlerService(httpService)
+
+  private val tokenRefreshMutex = Mutex()
 
   suspend fun initializeSession() =
       withContext(Dispatchers.IO) {
@@ -239,31 +243,33 @@ class NativeSDK(
   }
 
   private suspend fun refreshTokensIfNeeded() {
-    val accessTokenExpiresAt = session.profile.value?.accessTokenExpiresAt
-    if (accessTokenExpiresAt == null ||
-        accessTokenExpiresAt.isAfter(Instant.now().plus(1, ChronoUnit.MINUTES))) {
-      return
-    }
+    tokenRefreshMutex.withLock {
+      val accessTokenExpiresAt = session.profile.value?.accessTokenExpiresAt
+      if (accessTokenExpiresAt == null ||
+          accessTokenExpiresAt.isAfter(Instant.now().plus(1, ChronoUnit.MINUTES))) {
+        return
+      }
 
-    val refreshToken = session.profile.value?.tokenResponse?.refreshToken
-    if (refreshToken == null) {
-      session.clear()
-      return
-    }
-
-    try {
-      val tokenResponse =
-          oidcHandlerService.tokenRefresh(
-              URLBuilder(issuer).apply { path("/oauth2/token") }.toString(),
-              TokenRefreshParams(refreshToken, clientId))
-
-      session.update(tokenResponse)
-    } catch (e: HttpError) {
-      if (e.statusCode in listOf(401, 403)) {
+      val refreshToken = session.profile.value?.tokenResponse?.refreshToken
+      if (refreshToken == null) {
         session.clear()
         return
       }
-      throw e
+
+      try {
+        val tokenResponse =
+            oidcHandlerService.tokenRefresh(
+                URLBuilder(issuer).apply { path("/oauth2/token") }.toString(),
+                TokenRefreshParams(refreshToken, clientId))
+
+        session.update(tokenResponse)
+      } catch (e: HttpError) {
+        if (e.statusCode in listOf(401, 403)) {
+          session.clear()
+          return
+        }
+        throw e
+      }
     }
   }
 
