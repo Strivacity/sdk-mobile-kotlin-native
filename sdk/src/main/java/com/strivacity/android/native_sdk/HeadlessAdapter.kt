@@ -31,7 +31,7 @@ class HeadlessAdapter {
     this.scope = scope
 
     if (nativeSDK.loginController == null) {
-      error("No login in progress")
+      throw IllegalStateException("No login in progress")
     }
 
     loginController = nativeSDK.loginController!!
@@ -67,7 +67,7 @@ class HeadlessAdapter {
 
   fun getScreen(): Screen {
     if (loginController.screen.value == null) {
-      error("Screen not set")
+      throw IllegalStateException("Screen not set")
     }
 
     return loginController.screen.value!!

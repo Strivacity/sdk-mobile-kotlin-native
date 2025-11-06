@@ -135,7 +135,8 @@ internal constructor(
   }
 
   fun triggerFallback() {
-    val hostedUrl = _screen.value?.hostedUrl ?: error("Hosted url not available")
+    val hostedUrl =
+        _screen.value?.hostedUrl ?: throw IllegalStateException("Hosted url not available")
     triggerFallback(hostedUrl)
   }
 

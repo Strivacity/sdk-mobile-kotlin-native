@@ -195,7 +195,7 @@ class NativeSDK(
       return
     }
 
-    val code = parameters["code"] ?: error("Code missing from response")
+    val code = parameters["code"] ?: throw IllegalStateException("Code missing from response")
 
     try {
       val tokenResponse =

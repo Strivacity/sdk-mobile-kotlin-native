@@ -63,7 +63,7 @@ private fun List<*>.toJsonElement(): JsonElement {
       is Number -> list.add(JsonPrimitive(value))
       is String -> list.add(JsonPrimitive(value))
       is Enum<*> -> list.add(JsonPrimitive(value.toString()))
-      else -> error("Can't serialize unknown collection type: $value")
+      else -> throw IllegalStateException("Can't serialize unknown collection type: $value")
     }
   }
   return JsonArray(list)
@@ -81,7 +81,7 @@ private fun Map<*, *>.toJsonElement(): JsonObject {
       is Number -> map[key] = JsonPrimitive(value)
       is String -> map[key] = JsonPrimitive(value)
       is Enum<*> -> map[key] = JsonPrimitive(value.toString())
-      else -> error("Can't serialize unknown type: $value")
+      else -> throw IllegalStateException("Can't serialize unknown type: $value")
     }
   }
   return JsonObject(map)
