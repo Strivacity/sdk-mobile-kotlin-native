@@ -13,6 +13,7 @@ import io.ktor.http.Parameters
 import io.ktor.http.URLBuilder
 import io.ktor.http.path
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -222,7 +223,8 @@ class NativeSDK(
 
   private suspend fun refreshTokensIfNeeded() {
     val accessTokenExpiresAt = session.profile.value?.accessTokenExpiresAt
-    if (accessTokenExpiresAt == null || accessTokenExpiresAt.isAfter(Instant.now())) {
+    if (accessTokenExpiresAt == null ||
+        accessTokenExpiresAt.isAfter(Instant.now().plus(1, ChronoUnit.MINUTES))) {
       return
     }
 
