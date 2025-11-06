@@ -239,10 +239,12 @@ class NativeSDK(
               TokenRefreshParams(refreshToken, clientId))
 
       session.update(tokenResponse)
-    } catch (e: Throwable) {
-      session.clear()
-    } catch (e: Exception) {
-      session.clear()
+    } catch (e: HttpError) {
+      if (e.statusCode in listOf(401, 403)) {
+        session.clear()
+        return
+      }
+      throw e
     }
   }
 
