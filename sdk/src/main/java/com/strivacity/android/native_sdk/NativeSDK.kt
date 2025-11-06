@@ -203,7 +203,8 @@ class NativeSDK(
               URLBuilder(issuer).apply { path("/oauth2/token") }.toString(),
               TokenExchangeParams(code, oidcParams.codeVerifier, redirectURI, clientId))
 
-      if (oidcParams.nonce != extractClaims(tokenResponse)["nonce"] as String?) {
+      val responseNonce = extractClaims(tokenResponse)["nonce"] as? String
+      if (responseNonce == null || oidcParams.nonce != responseNonce) {
         cleanup()
         oidcParams.onError(InvalidCallbackError("Nonce param did not matched expected value"))
         return
