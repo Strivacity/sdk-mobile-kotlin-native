@@ -43,6 +43,7 @@ import com.strivacity.android.native_sdk.OidcError
 import com.strivacity.android.native_sdk.SessionExpiredError
 import com.strivacity.android.native_sdk.render.LoginController
 import com.strivacity.android.native_sdk.render.models.*
+import java.lang.ref.WeakReference
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -178,7 +179,7 @@ fun Login(nativeSDK: NativeSDK) {
                 error = null
                 try {
                   nativeSDK.login(
-                      context,
+                      WeakReference(context),
                       {},
                       { error = it },
                       LoginParameters(scopes = listOf("openid", "profile", "offline")))

@@ -12,6 +12,7 @@ import com.strivacity.android.native_sdk.service.TokenRefreshParams
 import io.ktor.http.Parameters
 import io.ktor.http.URLBuilder
 import io.ktor.http.path
+import java.lang.ref.WeakReference
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.Dispatchers
@@ -38,7 +39,7 @@ class NativeSDK(
       }
 
   suspend fun login(
-      context: Context,
+      context: WeakReference<Context>,
       onSuccess: () -> Unit,
       onError: (Error) -> Unit,
       loginParameters: LoginParameters? = null
