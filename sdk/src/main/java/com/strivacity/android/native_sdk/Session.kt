@@ -1,5 +1,6 @@
 package com.strivacity.android.native_sdk
 
+import android.util.Log
 import com.strivacity.android.native_sdk.service.TokenResponse
 import java.time.Instant
 import java.util.Base64
@@ -57,7 +58,9 @@ class Session(private val storage: Storage) {
       if (profileContent != null) {
         _profile.value = Json.decodeFromString(profileContent)
       }
-    } catch (_: Exception) {}
+    } catch (e: Exception) {
+      Log.d("Session", "Failed to parse profileContent", e)
+    }
   }
 
   internal fun clear() {
