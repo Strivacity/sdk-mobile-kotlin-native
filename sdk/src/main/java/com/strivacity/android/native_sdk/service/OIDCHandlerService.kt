@@ -30,7 +30,8 @@ internal class OIDCHandlerService(private val httpService: HttpService) {
         throw HttpError(statusCode = response.status.value)
       }
 
-      val locationHeader = response.headers["location"] ?: error("No location header found")
+      val locationHeader =
+          response.headers["location"] ?: throw IllegalStateException("No location header found")
       location = URLBuilder(locationHeader).build()
     } else {
       location = url

@@ -12,7 +12,13 @@ import com.strivacity.android.native_sdk.service.TokenRefreshParams
 import io.ktor.http.Parameters
 import io.ktor.http.URLBuilder
 import io.ktor.http.path
+import java.lang.ref.WeakReference
 import java.time.Instant
+import java.time.temporal.ChronoUnit
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 class NativeSDK(
     private val issuer: String,
@@ -28,100 +34,108 @@ class NativeSDK(
   private val httpService = HttpService()
   private val oidcHandlerService = OIDCHandlerService(httpService)
 
-  suspend fun initializeSession() {
-    session.load()
-    refreshTokensIfNeeded()
-  }
+  private val tokenRefreshMutex = Mutex()
+
+  suspend fun initializeSession() =
+      withContext(Dispatchers.IO) {
+        session.load()
+        refreshTokensIfNeeded()
+      }
 
   suspend fun login(
-      context: Context,
+      context: WeakReference<Context>,
       onSuccess: () -> Unit,
       onError: (Error) -> Unit,
       loginParameters: LoginParameters? = null
-  ) {
-    val oidcParams = OidcParams(onSuccess, onError)
+  ) =
+      withContext(Dispatchers.IO) {
+        val oidcParams = OidcParams(onSuccess, onError)
 
-    val url =
-        URLBuilder(issuer)
-            .apply {
-              path("/oauth2/auth")
-              parameters.append("response_type", "code")
-              parameters.append("client_id", clientId)
-              parameters.append("redirect_uri", redirectURI)
-              parameters.append("state", oidcParams.state)
-              parameters.append("nonce", oidcParams.nonce)
-              parameters.append("code_challenge", oidcParams.codeChallenge)
-              parameters.append("code_challenge_method", "S256")
-              parameters.append("sdk", mode.value)
+        val url =
+            URLBuilder(issuer)
+                .apply {
+                  path("/oauth2/auth")
+                  parameters.append("response_type", "code")
+                  parameters.append("client_id", clientId)
+                  parameters.append("redirect_uri", redirectURI)
+                  parameters.append("state", oidcParams.state)
+                  parameters.append("nonce", oidcParams.nonce)
+                  parameters.append("code_challenge", oidcParams.codeChallenge)
+                  parameters.append("code_challenge_method", "S256")
+                  parameters.append("sdk", mode.value)
 
-              val scopes = loginParameters?.scopes ?: listOf("openid", "profile")
-              parameters.append("scope", scopes.joinToString(separator = " "))
+                  val scopes = loginParameters?.scopes ?: listOf("openid", "profile")
+                  parameters.append("scope", scopes.joinToString(separator = " "))
 
-              if (loginParameters?.loginHint != null) {
-                parameters.append("login_hint", loginParameters.loginHint)
-              }
+                  if (loginParameters?.loginHint != null) {
+                    parameters.append("login_hint", loginParameters.loginHint)
+                  }
 
-              if (loginParameters?.acrValue != null) {
-                parameters.append("acr_values", loginParameters.acrValue)
-              }
+                  if (loginParameters?.acrValue != null) {
+                    parameters.append("acr_values", loginParameters.acrValue)
+                  }
 
-              if (loginParameters?.prompt != null) {
-                parameters.append("prompt", loginParameters.prompt)
-              }
-            }
-            .build()
+                  if (loginParameters?.prompt != null) {
+                    parameters.append("prompt", loginParameters.prompt)
+                  }
+                }
+                .build()
 
-    try {
-      val parameters = oidcHandlerService.handleCall(url)
+        try {
+          val parameters = oidcHandlerService.handleCall(url)
 
-      val sessionId = parameters["session_id"]
-      if (sessionId == null) {
-        continueFlow(oidcParams, parameters)
-        return
+          val sessionId = parameters["session_id"]
+          if (sessionId == null) {
+            continueFlow(oidcParams, parameters)
+            return@withContext
+          }
+
+          val loginHandlerService = LoginHandlerService(httpService, issuer, sessionId)
+          val loginController =
+              LoginController(this@NativeSDK, loginHandlerService, oidcParams, context)
+
+          loginController.initialize()
+          this@NativeSDK.loginController = loginController
+
+          session.setLoginInProgress(true)
+        } catch (e: Exception) {
+          onError(UnknownError(e))
+        }
       }
 
-      val loginHandlerService = LoginHandlerService(httpService, issuer, sessionId)
-      val loginController = LoginController(this, loginHandlerService, oidcParams, context)
+  suspend fun isAuthenticated(): Boolean =
+      withContext(Dispatchers.IO) {
+        refreshTokensIfNeeded()
+        return@withContext session.profile.value != null
+      }
 
-      loginController.initialize()
-      this.loginController = loginController
-
-      session.setLoginInProgress(true)
-    } catch (e: Exception) {
-      onError(UnknownError(e))
-    }
-  }
-
-  suspend fun isAuthenticated(): Boolean {
-    refreshTokensIfNeeded()
-    return session.profile.value != null
-  }
-
-  suspend fun getAccessToken(): String? {
-    refreshTokensIfNeeded()
-    return session.profile.value?.tokenResponse?.accessToken
-  }
+  suspend fun getAccessToken(): String? =
+      withContext(Dispatchers.IO) {
+        refreshTokensIfNeeded()
+        return@withContext session.profile.value?.tokenResponse?.accessToken
+      }
 
   fun isRedirectExpected(): Boolean {
     return loginController?.isRedirectExpected ?: false
   }
 
-  suspend fun continueFlow(uri: String?) {
-    val oidcParams = loginController?.oidcParams ?: return
+  suspend fun continueFlow(uri: String?) =
+      withContext(Dispatchers.IO) {
+        val oidcParams = loginController?.oidcParams ?: return@withContext
 
-    if (uri == null) {
-      cancelFlow(HostedFlowCanceledError())
-      return
-    }
+        if (uri == null) {
+          cancelFlow(HostedFlowCanceledError())
+          return@withContext
+        }
 
-    try {
-      val parameters = oidcHandlerService.handleCall(URLBuilder(uri).build())
-      continueFlow(oidcParams, parameters)
-    } catch (e: Exception) {
-      cleanup()
-      oidcParams.onError(UnknownError(e))
-    }
-  }
+        try {
+          val parameters = oidcHandlerService.handleCall(URLBuilder(uri).build())
+          continueFlow(oidcParams, parameters)
+        } catch (e: Exception) {
+          cleanup()
+          oidcParams.onError(UnknownError(e))
+        }
+      }
 
   fun cancelFlow(error: Error? = null) {
     val loginController = loginController ?: return
@@ -132,30 +146,31 @@ class NativeSDK(
     }
   }
 
-  suspend fun logout() {
-    val idToken = session.profile.value?.tokenResponse?.idToken
+  suspend fun logout() =
+      withContext(Dispatchers.IO) {
+        val idToken = session.profile.value?.tokenResponse?.idToken
 
-    session.clear()
+        session.clear()
 
-    if (idToken == null) {
-      return
-    }
+        if (idToken == null) {
+          return@withContext
+        }
 
-    val url =
-        URLBuilder(issuer)
-            .apply {
-              path("/oauth2/sessions/logout")
-              parameters.append("id_token_hint", idToken)
-              parameters.append("post_logout_redirect_uri", postLogoutURI)
-            }
-            .build()
+        val url =
+            URLBuilder(issuer)
+                .apply {
+                  path("/oauth2/sessions/logout")
+                  parameters.append("id_token_hint", idToken)
+                  parameters.append("post_logout_redirect_uri", postLogoutURI)
+                }
+                .build()
 
-    try {
-      oidcHandlerService.handleCall(url)
-    } catch (e: Error) {
-      Log.d("NativeSDK", "Failed to call logout endpoint", e)
-    }
-  }
+        try {
+          oidcHandlerService.handleCall(url)
+        } catch (e: Error) {
+          Log.d("NativeSDK", "Failed to call logout endpoint", e)
+        }
+      }
 
   private suspend fun continueFlow(oidcParams: OidcParams, parameters: Parameters) {
     val sessionId = parameters["session_id"]
@@ -186,7 +201,7 @@ class NativeSDK(
       return
     }
 
-    val code = parameters["code"] ?: error("Code missing from response")
+    val code = parameters["code"] ?: throw IllegalStateException("Code missing from response")
 
     try {
       val tokenResponse =
@@ -194,9 +209,26 @@ class NativeSDK(
               URLBuilder(issuer).apply { path("/oauth2/token") }.toString(),
               TokenExchangeParams(code, oidcParams.codeVerifier, redirectURI, clientId))
 
-      if (oidcParams.nonce != extractClaims(tokenResponse)["nonce"] as String?) {
+      val claims = extractClaims(tokenResponse)
+      val responseNonce = claims["nonce"] as? String
+      if (responseNonce == null || oidcParams.nonce != responseNonce) {
         cleanup()
         oidcParams.onError(InvalidCallbackError("Nonce param did not matched expected value"))
+        return
+      }
+
+      val responseIssuer = claims["iss"] as? String
+      val normalizedIssuer = if (issuer.endsWith("/")) issuer else "$issuer/"
+      if (responseIssuer == null || normalizedIssuer != responseIssuer) {
+        cleanup()
+        oidcParams.onError(InvalidCallbackError("Issuer param did not matched expected value"))
+        return
+      }
+
+      val responseAudience = claims["aud"] as? List<*>
+      if (responseAudience == null || !responseAudience.contains(clientId)) {
+        cleanup()
+        oidcParams.onError(InvalidCallbackError("Audience param did not matched expected value"))
         return
       }
 
@@ -211,28 +243,33 @@ class NativeSDK(
   }
 
   private suspend fun refreshTokensIfNeeded() {
-    val accessTokenExpiresAt = session.profile.value?.accessTokenExpiresAt
-    if (accessTokenExpiresAt == null || accessTokenExpiresAt.isAfter(Instant.now())) {
-      return
-    }
+    tokenRefreshMutex.withLock {
+      val accessTokenExpiresAt = session.profile.value?.accessTokenExpiresAt
+      if (accessTokenExpiresAt == null ||
+          accessTokenExpiresAt.isAfter(Instant.now().plus(1, ChronoUnit.MINUTES))) {
+        return
+      }
 
-    val refreshToken = session.profile.value?.tokenResponse?.refreshToken
-    if (refreshToken == null) {
-      session.clear()
-      return
-    }
+      val refreshToken = session.profile.value?.tokenResponse?.refreshToken
+      if (refreshToken == null) {
+        session.clear()
+        return
+      }
 
-    try {
-      val tokenResponse =
-          oidcHandlerService.tokenRefresh(
-              URLBuilder(issuer).apply { path("/oauth2/token") }.toString(),
-              TokenRefreshParams(refreshToken, clientId))
+      try {
+        val tokenResponse =
+            oidcHandlerService.tokenRefresh(
+                URLBuilder(issuer).apply { path("/oauth2/token") }.toString(),
+                TokenRefreshParams(refreshToken, clientId))
 
-      session.update(tokenResponse)
-    } catch (e: Throwable) {
-      session.clear()
-    } catch (e: Exception) {
-      session.clear()
+        session.update(tokenResponse)
+      } catch (e: HttpError) {
+        if (e.statusCode in listOf(401, 403)) {
+          session.clear()
+          return
+        }
+        throw e
+      }
     }
   }
 

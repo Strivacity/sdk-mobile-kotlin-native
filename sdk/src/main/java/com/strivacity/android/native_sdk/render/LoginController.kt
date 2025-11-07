@@ -11,15 +11,18 @@ import com.strivacity.android.native_sdk.render.models.Messages
 import com.strivacity.android.native_sdk.render.models.Screen
 import com.strivacity.android.native_sdk.service.LoginHandlerService
 import com.strivacity.android.native_sdk.service.OidcParams
+import java.lang.ref.WeakReference
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.withContext
 
 class LoginController
 internal constructor(
     private val nativeSDK: NativeSDK,
     private val loginHandlerService: LoginHandlerService,
     internal val oidcParams: OidcParams,
-    private val context: Context
+    private val context: WeakReference<Context>
 ) {
   private val _screen = MutableStateFlow<Screen?>(null)
   val screen: StateFlow<Screen?> = _screen
@@ -35,32 +38,33 @@ internal constructor(
 
   internal var isRedirectExpected = false
 
-  suspend fun initialize() {
-    updateScreen(loginHandlerService.initCall())
-  }
+  suspend fun initialize() =
+      withContext(Dispatchers.IO) { updateScreen(loginHandlerService.initCall()) }
 
-  suspend fun submit(formId: String) {
-    val body =
-        when (val map = forms.value[formId]) {
-          null -> mapOf()
-          else -> unfoldMap(map)
+  suspend fun submit(formId: String) =
+      withContext(Dispatchers.IO) {
+        val body =
+            when (val map = forms.value[formId]) {
+              null -> mapOf()
+              else -> unfoldMap(map)
+            }
+
+        submit(formId, body)
+      }
+
+  internal suspend fun submit(formId: String, body: Map<String, Any>) =
+      withContext(Dispatchers.IO) {
+        _processing.value = true
+
+        try {
+          updateScreen(loginHandlerService.submitForm(formId, body))
+        } catch (e: SessionExpiredError) {
+          nativeSDK.cancelFlow(e)
+        } catch (e: Exception) {
+          Log.d("LoginController", "Failed to load screen", e)
+          triggerFallback()
         }
-
-    submit(formId, body)
-  }
-
-  internal suspend fun submit(formId: String, body: Map<String, Any>) {
-    _processing.value = true
-
-    try {
-      updateScreen(loginHandlerService.submitForm(formId, body))
-    } catch (e: SessionExpiredError) {
-      nativeSDK.cancelFlow(e)
-    } catch (e: Exception) {
-      Log.d("LoginController", "Failed to load screen", e)
-      triggerFallback()
-    }
-  }
+      }
 
   fun <T> stateForWidget(formId: String, widgetId: String, defaultValue: T): MutableStateFlow<T> {
     @Suppress("UNCHECKED_CAST")
@@ -132,13 +136,16 @@ internal constructor(
   }
 
   fun triggerFallback() {
-    val hostedUrl = _screen.value?.hostedUrl ?: error("Hosted url not available")
+    val hostedUrl =
+        _screen.value?.hostedUrl ?: throw IllegalStateException("Hosted url not available")
     triggerFallback(hostedUrl)
   }
 
   private fun triggerFallback(uri: String) {
+    val ctx = context.get() ?: throw IllegalStateException("Context is no longer available")
+
     isRedirectExpected = true
     val customTabsIntent = CustomTabsIntent.Builder().build()
-    customTabsIntent.launchUrl(context, uri.toUri())
+    customTabsIntent.launchUrl(ctx, uri.toUri())
   }
 }

@@ -43,6 +43,7 @@ import com.strivacity.android.native_sdk.OidcError
 import com.strivacity.android.native_sdk.SessionExpiredError
 import com.strivacity.android.native_sdk.render.LoginController
 import com.strivacity.android.native_sdk.render.models.*
+import java.lang.ref.WeakReference
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -147,10 +148,13 @@ fun Login(nativeSDK: NativeSDK) {
               coroutineScope.launch {
                 try {
                   val accessToken = nativeSDK.getAccessToken()
-                  println(nativeSDK.getAccessToken())
+                  // println(accessToken) // uncomment to fetch access token from the log during
+                  // development
                   Toast.makeText(context, accessToken, Toast.LENGTH_LONG).show()
-                } catch (e: Exception) {
-                  Toast.makeText(context, "Unable to fetch access token", Toast.LENGTH_LONG).show()
+                } catch (e: Throwable) {
+                  Toast.makeText(
+                          context, "Unable to fetch access token ${e.message}", Toast.LENGTH_LONG)
+                      .show()
                 }
               }
             }) {
@@ -178,7 +182,7 @@ fun Login(nativeSDK: NativeSDK) {
                 error = null
                 try {
                   nativeSDK.login(
-                      context,
+                      WeakReference(context),
                       {},
                       { error = it },
                       LoginParameters(scopes = listOf("openid", "profile", "offline")))
@@ -209,7 +213,11 @@ fun Login(nativeSDK: NativeSDK) {
 
   LaunchedEffect(Unit) {
     coroutineScope.launch {
-      nativeSDK.initializeSession()
+      try {
+        nativeSDK.initializeSession()
+      } catch (e: Throwable) {
+        Toast.makeText(context, "Failed to initialize ${e.message}", Toast.LENGTH_SHORT).show()
+      }
       loading = false
     }
   }

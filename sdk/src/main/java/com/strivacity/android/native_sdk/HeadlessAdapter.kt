@@ -3,27 +3,34 @@ package com.strivacity.android.native_sdk
 import com.strivacity.android.native_sdk.render.LoginController
 import com.strivacity.android.native_sdk.render.models.Messages
 import com.strivacity.android.native_sdk.render.models.Screen
-import java.util.Objects
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class HeadlessAdapter {
-  private val scope = CoroutineScope(Dispatchers.Main)
+  private val scope: CoroutineScope
 
   private val nativeSDK: NativeSDK
   private val loginController: LoginController
 
   private val delegate: HeadlessAdapterDelegate
 
-  constructor(nativeSDK: NativeSDK, delegate: HeadlessAdapterDelegate) {
+  constructor(
+      nativeSDK: NativeSDK,
+      delegate: HeadlessAdapterDelegate,
+      scope: CoroutineScope = MainScope()
+  ) {
     this.nativeSDK = nativeSDK
     this.delegate = delegate
+    this.scope = scope
 
     if (nativeSDK.loginController == null) {
-      error("No login in progress")
+      throw IllegalStateException("No login in progress")
     }
 
     loginController = nativeSDK.loginController!!
@@ -38,10 +45,10 @@ class HeadlessAdapter {
         val newScreen = loginController.screen.value
         oldScreen = newScreen
 
-        if (Objects.equals(currentScreen?.screen, newScreen?.screen) &&
-            Objects.equals(currentScreen?.forms, newScreen?.forms) &&
-            Objects.equals(currentScreen?.layout, newScreen?.layout) &&
-            !Objects.equals(currentScreen?.messages, newScreen?.messages)) {
+        if (currentScreen?.screen == newScreen?.screen &&
+            currentScreen?.forms == newScreen?.forms &&
+            currentScreen?.layout == newScreen?.layout &&
+            currentScreen?.messages != newScreen?.messages) {
           delegate.refreshScreen(getScreen())
           return@collectLatest
         }
@@ -51,21 +58,22 @@ class HeadlessAdapter {
     }
   }
 
+  fun dispose() = scope.cancel()
+
   fun initialize() {
     delegate.renderScreen(getScreen())
   }
 
   fun getScreen(): Screen {
     if (loginController.screen.value == null) {
-      error("Screen not set")
+      throw IllegalStateException("Screen not set")
     }
 
     return loginController.screen.value!!
   }
 
-  suspend fun submit(formId: String, body: Map<String, Any>) {
-    loginController.submit(formId, body)
-  }
+  suspend fun submit(formId: String, body: Map<String, Any>) =
+      withContext(Dispatchers.IO) { loginController.submit(formId, body) }
 
   fun messages(): StateFlow<Messages?> {
     return loginController.messages
