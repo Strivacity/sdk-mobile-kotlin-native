@@ -19,13 +19,13 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
 import io.ktor.http.URLBuilder
 import io.ktor.http.path
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.lang.ref.WeakReference
 import java.time.Clock
 import java.time.Instant
 import java.time.temporal.ChronoUnit
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 import java.util.Locale
 
 class NativeSDK
@@ -102,10 +102,11 @@ internal constructor(
       onSuccess: () -> Unit,
       onError: (Error) -> Unit,
       loginParameters: LoginParameters? = null,
+      context: Context? = null, // required for Passkey support
   ) =
-      withContext(dispatchers.IO) {
-        logging.info("NativeSDK: Starting login flow")
-        val oidcParams = OidcParams(onSuccess, onError)
+    withContext(dispatchers.IO) {
+      logging.info("NativeSDK: Starting login flow")
+      val oidcParams = OidcParams(onSuccess, onError)
 
         val url =
             URLBuilder(issuer)
@@ -184,6 +185,7 @@ internal constructor(
                   oidcParams,
                   fallbackHandler,
                   logging,
+                WeakReference(context),
               )
 
           loginController.initialize()
@@ -217,6 +219,7 @@ internal constructor(
         onSuccess = onSuccess,
         onError = onError,
         loginParameters = loginParameters,
+        context = context.get(),
     )
   }
 
@@ -225,6 +228,7 @@ internal constructor(
       fallbackHandler: FallbackHandler,
       onSuccess: () -> Unit,
       onError: (Error) -> Unit,
+      context: Context? = null, // required for Passkey support
   ) {
     logging.debug("NativeSDK: Attempting entry call")
     if (uri == null) {
@@ -311,6 +315,7 @@ internal constructor(
               oidcParams,
               fallbackHandler,
               logging,
+            WeakReference(context)
           )
 
       loginController.initialize()

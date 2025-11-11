@@ -1,5 +1,7 @@
 package com.strivacity.android.app
 
+import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.semantics
@@ -55,20 +58,24 @@ import com.strivacity.android.native_sdk.render.models.DateWidget
 import com.strivacity.android.native_sdk.render.models.InputWidget
 import com.strivacity.android.native_sdk.render.models.MultiSelectWidget
 import com.strivacity.android.native_sdk.render.models.PasscodeWidget
+import com.strivacity.android.native_sdk.render.models.PasskeyEnrollWidget
+import com.strivacity.android.native_sdk.render.models.PasskeyLoginWidget
 import com.strivacity.android.native_sdk.render.models.PasswordWidget
 import com.strivacity.android.native_sdk.render.models.PhoneWidget
 import com.strivacity.android.native_sdk.render.models.Screen
 import com.strivacity.android.native_sdk.render.models.SelectWidget
 import com.strivacity.android.native_sdk.render.models.StaticWidget
 import com.strivacity.android.native_sdk.render.models.SubmitWidget
+import com.strivacity.android.native_sdk.render.models.WebauthnEnrollWidget
+import com.strivacity.android.native_sdk.render.models.WebauthnLoginWidget
 import com.strivacity.android.native_sdk.render.models.Widget
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
-import kotlinx.coroutines.launch
 
 @Composable
 fun Widget(
@@ -90,6 +97,10 @@ fun Widget(
     is SelectWidget -> SelectWidget(loginController, screen, widget, formId, widgetId)
     is StaticWidget -> StaticWidget(loginController, screen, widget, formId, widgetId)
     is SubmitWidget -> SubmitWidget(loginController, screen, widget, formId, widgetId)
+    is PasskeyEnrollWidget -> PasskeyEnrollWidget(loginController, screen, widget, formId, widgetId)
+    is PasskeyLoginWidget -> PasskeyLoginWidget(loginController, screen, widget, formId, widgetId)
+    is WebauthnEnrollWidget -> WebauthnEnrollWidget(loginController, screen, widget, formId, widgetId)
+    is WebauthnLoginWidget -> WebauthnLoginWidget(loginController, screen, widget, formId, widgetId)
     else -> loginController.triggerFallback()
   }
 
@@ -597,6 +608,146 @@ fun TextWithType(loginController: LoginController, type: String?, value: String)
                                 textDecoration = TextDecoration.Underline,
                                 color = MaterialTheme.colorScheme.primary))))
 
+    else -> loginController.triggerFallback()
+  }
+}
+
+@Composable
+fun PasskeyEnrollWidget(
+    loginController: LoginController,
+    screen: Screen,
+    widget: PasskeyEnrollWidget,
+    formId: String,
+    widgetId: String
+) {
+    val coroutineScope = rememberCoroutineScope()
+
+    val processing by loginController.processing.collectAsState()
+
+    val context = LocalContext.current
+
+    val tag = "PasskeyEnrollWidget"
+
+    val onClick: () -> Unit = { coroutineScope.launch {
+        try {
+          loginController.submit(formId)
+        } catch (e: Throwable) {
+            Log.w(tag, "Unexpected exception: ${e.message}")
+
+            Toast.makeText(
+                context,
+                "Unexpected error occurred, please try again (105).",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    } }
+    when (widget.render?.type) {
+        "button" -> Button(onClick = onClick, enabled = !processing) { Text(widget.label) }
+        else -> loginController.triggerFallback()
+    }
+}
+
+@Composable
+fun PasskeyLoginWidget(
+    loginController: LoginController,
+    screen: Screen,
+    widget: PasskeyLoginWidget,
+    formId: String,
+    widgetId: String
+) {
+    val coroutineScope = rememberCoroutineScope()
+
+    val processing by loginController.processing.collectAsState()
+
+    val context = LocalContext.current
+
+    val tag = "PasskeyLoginWidget"
+
+    val onClick: () -> Unit = { coroutineScope.launch {
+        try {
+          loginController.submit(formId)
+        } catch (e: Throwable) {
+            Log.w(tag, "Unexpected exception: ${e.message}")
+
+            Toast.makeText(
+                context,
+                "Unexpected error occurred, please try again (105).",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    } }
+    when (widget.render?.type) {
+        "button" -> Button(onClick = onClick, enabled = !processing) { Text(widget.label) }
+        else -> loginController.triggerFallback()
+    }
+}
+
+@Composable
+fun WebauthnEnrollWidget(
+  loginController: LoginController,
+  screen: Screen,
+  widget: WebauthnEnrollWidget,
+  formId: String,
+  widgetId: String
+) {
+  val coroutineScope = rememberCoroutineScope()
+
+  val processing by loginController.processing.collectAsState()
+
+  val context = LocalContext.current
+
+  val tag = "WebauthnEnrollWidget"
+
+  val onClick: () -> Unit = { coroutineScope.launch {
+    try {
+      loginController.submit(formId)
+    } catch (e: Throwable) {
+      Log.w(tag, "Unexpected exception: ${e.message}")
+
+      Toast.makeText(
+        context,
+        "Unexpected error occurred, please try again (105).",
+        Toast.LENGTH_LONG
+      ).show()
+    }
+  } }
+  when (widget.render?.type) {
+    "button" -> Button(onClick = onClick, enabled = !processing) { Text(widget.label) }
+    else -> loginController.triggerFallback()
+  }
+}
+
+@Composable
+fun WebauthnLoginWidget(
+  loginController: LoginController,
+  screen: Screen,
+  widget: WebauthnLoginWidget,
+  formId: String,
+  widgetId: String
+) {
+  val coroutineScope = rememberCoroutineScope()
+
+  val processing by loginController.processing.collectAsState()
+
+  val context = LocalContext.current
+
+  val tag = "WebauthnLoginWidget"
+
+  val onClick: () -> Unit = { coroutineScope.launch {
+    try {
+      loginController.submit(formId)
+    } catch (e: Throwable) {
+      Log.w(tag, "Unexpected exception: ${e.message}")
+
+      Toast.makeText(
+        context,
+        "Unexpected error occurred, please try again (105).",
+        Toast.LENGTH_LONG
+      ).show()
+    }
+  } }
+  when (widget.render?.type) {
+    "button" -> Button(onClick = onClick, enabled = !processing) { Text(widget.label) }
     else -> loginController.triggerFallback()
   }
 }

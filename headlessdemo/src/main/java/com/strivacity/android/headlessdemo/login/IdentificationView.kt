@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import com.strivacity.android.headlessdemo.ui.theme.StrivacityPrimary
 import com.strivacity.android.headlessdemo.ui.theme.StrivacitySecondary
 import com.strivacity.android.native_sdk.HeadlessAdapter
+import com.strivacity.android.native_sdk.render.models.PasskeyLoginWidget
 import com.strivacity.android.native_sdk.render.models.Screen
 import com.strivacity.android.native_sdk.render.models.SubmitWidget
 import kotlinx.coroutines.launch
