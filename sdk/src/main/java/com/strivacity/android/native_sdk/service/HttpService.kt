@@ -1,6 +1,7 @@
 package com.strivacity.android.native_sdk.service
 
 import io.ktor.client.HttpClient
+import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.android.Android
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.cookies.HttpCookies
@@ -19,9 +20,9 @@ import java.util.Locale
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 
-internal class HttpService {
+internal class HttpService(clientEngine: HttpClientEngine = Android.create()) {
   private val client =
-      HttpClient(Android) {
+      HttpClient(clientEngine) {
         install(ContentNegotiation) {
           json(
               Json {
@@ -34,7 +35,7 @@ internal class HttpService {
 
   suspend fun get(
       url: Url,
-      acceptHeader: ContentType = ContentType.Application.Json
+      acceptHeader: ContentType = ContentType.Application.Json,
   ): HttpResponse {
     return client.get(url) { accept(acceptHeader) }
   }
@@ -43,7 +44,7 @@ internal class HttpService {
       url: Url,
       session: String,
       body: JsonObject? = null,
-      acceptHeader: ContentType = ContentType.Application.Json
+      acceptHeader: ContentType = ContentType.Application.Json,
   ): HttpResponse {
     return client.post(url) {
       accept(acceptHeader)
@@ -59,7 +60,7 @@ internal class HttpService {
   suspend fun postForm(
       url: String,
       body: Parameters,
-      acceptHeader: ContentType = ContentType.Application.Json
+      acceptHeader: ContentType = ContentType.Application.Json,
   ): HttpResponse {
     return client.submitForm(url = url, formParameters = body) { accept(acceptHeader) }
   }

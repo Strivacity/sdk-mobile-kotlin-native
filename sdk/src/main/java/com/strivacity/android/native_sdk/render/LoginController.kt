@@ -1,9 +1,6 @@
 package com.strivacity.android.native_sdk.render
 
-import android.content.Context
 import android.util.Log
-import androidx.browser.customtabs.CustomTabsIntent
-import androidx.core.net.toUri
 import com.strivacity.android.native_sdk.NativeSDK
 import com.strivacity.android.native_sdk.SessionExpiredError
 import com.strivacity.android.native_sdk.render.models.FormWidget
@@ -11,18 +8,19 @@ import com.strivacity.android.native_sdk.render.models.Messages
 import com.strivacity.android.native_sdk.render.models.Screen
 import com.strivacity.android.native_sdk.service.LoginHandlerService
 import com.strivacity.android.native_sdk.service.OidcParams
-import java.lang.ref.WeakReference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
+
+typealias FallbackHandler = (uriToLoad: String) -> Unit
 
 class LoginController
 internal constructor(
     private val nativeSDK: NativeSDK,
     private val loginHandlerService: LoginHandlerService,
     internal val oidcParams: OidcParams,
-    private val context: WeakReference<Context>
+    private val fallbackHandler: FallbackHandler,
 ) {
   private val _screen = MutableStateFlow<Screen?>(null)
   val screen: StateFlow<Screen?> = _screen
@@ -142,10 +140,7 @@ internal constructor(
   }
 
   private fun triggerFallback(uri: String) {
-    val ctx = context.get() ?: throw IllegalStateException("Context is no longer available")
-
     isRedirectExpected = true
-    val customTabsIntent = CustomTabsIntent.Builder().build()
-    customTabsIntent.launchUrl(ctx, uri.toUri())
+    fallbackHandler(uri)
   }
 }
