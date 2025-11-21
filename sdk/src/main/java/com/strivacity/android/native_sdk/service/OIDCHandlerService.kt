@@ -19,10 +19,11 @@ internal class OIDCHandlerService(private val httpService: HttpService) {
     val location: Url
     if (url.protocol.name == "https") {
       val response = httpService.get(url, acceptHeader = ContentType.Text.Html)
-
-      if (response.status.value == 200 &&
-          response.request.url.host == url.host &&
-          response.request.url.encodedPath == "/oauth2/error") {
+      if (
+          response.status.value == 200 &&
+              response.request.url.host == url.host &&
+              response.request.url.encodedPath == "/oauth2/error"
+      ) {
         return response.request.url.parameters
       }
 
@@ -76,7 +77,7 @@ internal data class TokenExchangeParams(
     val codeVerifier: String,
     val redirectURI: String,
     val clientId: String,
-    val nonce: String = OIDCParamGenerator.generateRandomString(16)
+    val nonce: String = OIDCParamGenerator.generateRandomString(16),
 ) {
   fun toParameters(): Parameters {
     return parameters {
@@ -105,5 +106,5 @@ internal data class TokenResponse(
     @SerialName("access_token") val accessToken: String,
     @SerialName("id_token") val idToken: String,
     @SerialName("expires_in") val expiresIn: Int,
-    @SerialName("refresh_token") val refreshToken: String?
+    @SerialName("refresh_token") val refreshToken: String?,
 )

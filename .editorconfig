@@ -1,0 +1,15 @@
+[*]
+
+insert_final_newline = true
+charset = utf-8
+end_of_line = lf
+
+[sdk/**.kt]
+
+indent_size = 2
+indent_style = space
+tab_width = 2
+max_line_length = 100
+
+ij_kotlin_continuation_indent_size = 4
+ij_kotlin_imports_layout = *,java.**,javax.**,kotlin.**,^
