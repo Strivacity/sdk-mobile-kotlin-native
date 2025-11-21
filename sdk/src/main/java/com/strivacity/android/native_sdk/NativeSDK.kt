@@ -25,20 +25,20 @@ import kotlinx.coroutines.withContext
 
 class NativeSDK
 internal constructor(
-    private val issuer: String,
-    private val clientId: String,
-    private val redirectURI: String,
-    private val postLogoutURI: String,
-    val session: Session,
-    private val httpService: HttpService = HttpService(),
-    private val mode: SdkMode = SdkMode.Android,
-    private val dispatchers: SDKDispatchers = DefaultSDKDispatchers,
-    private val clock: Clock = Clock.systemUTC(),
-    oidcHandlerService: OIDCHandlerService? = null,
+  private val issuer: String,
+  private val clientId: String,
+  private val redirectURI: String,
+  private val postLogoutURI: String,
+  val session: Session,
+  private val httpService: HttpService = HttpService(),
+  private val mode: SdkMode = SdkMode.Android,
+  private val dispatchers: SDKDispatchers = DefaultSDKDispatchers,
+  private val clock: Clock = Clock.systemUTC(),
+  oidcHandlerServiceOverride: OIDCHandlerService? = null,
 ) {
 
   private val oidcHandlerService: OIDCHandlerService =
-      oidcHandlerService ?: OIDCHandlerService(httpService)
+      oidcHandlerServiceOverride ?: OIDCHandlerService(httpService)
 
   constructor(
       issuer: String,

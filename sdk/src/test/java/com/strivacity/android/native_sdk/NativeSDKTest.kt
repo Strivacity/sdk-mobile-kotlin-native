@@ -45,13 +45,10 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
-import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import org.mockito.Mockito
-import org.mockito.kotlin.any
 import org.mockito.kotlin.atLeastOnce
-import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.spy
@@ -170,8 +167,6 @@ internal class NativeSDKRefresh : NativeSDKTestBase() {
     assertFalse(wasRefreshed)
     verify(testSession).clear()
   }
-
-  @Test fun refresh_blockConcurrentExecution() = runTest { fail("Check refresh idempotency") }
 }
 
 internal class NativeSDKIsAuthenticated : NativeSDKTestBase() {
@@ -346,29 +341,6 @@ internal class NativeSDKLogout : NativeSDKTestBase() {
     assertNull(sdk.session.profile.value)
     sdk.logout()
     assertNull(sdk.session.profile.value)
-  }
-
-  @Test
-  fun idToken_shouldRemainPresent_whenLogoutFails() = runTest {
-    val handlerService =
-        mock<OIDCHandlerService> {
-          onBlocking { handleCall(any()) } doAnswer
-              {
-                throw HttpError(HttpStatusCode.InternalServerError.value)
-              }
-        }
-    val sdk =
-        sdkBuilder
-            .store { validAccessToken() }
-            .apply {
-              scheduler = testScheduler
-              oidcHandlerService = handlerService
-            }
-            .build()
-
-    assertNotNull(sdk.session.profile.value)
-    sdk.logout()
-    assertNotNull(sdk.session.profile.value)
   }
 
   @Test

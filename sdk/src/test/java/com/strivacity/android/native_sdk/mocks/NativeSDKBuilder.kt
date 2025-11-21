@@ -65,7 +65,7 @@ internal class NativeSDKBuilder {
             clock = clock,
             session = session ?: Session(storage!!),
             httpService = httpService,
-            oidcHandlerService = oidcHandlerService ?: OIDCHandlerService(httpService),
+            oidcHandlerServiceOverride = oidcHandlerService ?: OIDCHandlerService(httpService),
         )
     sdk.session.load()
     return sdk
