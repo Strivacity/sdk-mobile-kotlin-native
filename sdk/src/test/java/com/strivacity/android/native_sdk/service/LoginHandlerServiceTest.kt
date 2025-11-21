@@ -11,7 +11,6 @@ import io.ktor.http.headers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertThrows
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LoginHandlerServiceTest {
@@ -24,16 +23,10 @@ class LoginHandlerServiceTest {
   }
 
   @Test
-  fun initCall_shouldThrowHttpError_whenStatusIs500() = runTest {
+  fun initCall_shouldThrowHttpError_whenStatusIs500() {
     val service = HttpService(MockEngine { respond("", HttpStatusCode.InternalServerError) })
     val handlerService = LoginHandlerService(service, "https://localhost/", "test-session-id")
-    lateinit var error: Throwable
-    try {
-      handlerService.initCall()
-    } catch (e: Throwable) {
-      error = e
-    }
-    assertTrue("Is a SessionExpiredError", error is HttpError)
+    assertThrows(HttpError::class.java) { runBlocking { handlerService.initCall() } }
   }
 
   @Test
@@ -64,17 +57,13 @@ class LoginHandlerServiceTest {
             }
         )
     val handlerService = LoginHandlerService(service, "https://localhost/", "test-session-id")
-    lateinit var error: Throwable
-    try {
-      handlerService.submitForm("test-form-id", body = mapOf())
-    } catch (e: Throwable) {
-      error = e
+    assertThrows(SessionExpiredError::class.java) {
+      runBlocking { handlerService.submitForm("test-form-id", body = mapOf()) }
     }
-    assertTrue("Is a SessionExpiredError", error is SessionExpiredError)
   }
 
   @Test
-  fun submitForm_shouldThrowHttpError_whenStatusIs500() = runTest {
+  fun submitForm_shouldThrowHttpError_whenStatusIs500() {
     val service =
         HttpService(
             MockEngine {
@@ -85,12 +74,8 @@ class LoginHandlerServiceTest {
             }
         )
     val handlerService = LoginHandlerService(service, "https://localhost/", "test-session-id")
-    lateinit var error: Throwable
-    try {
-      handlerService.submitForm("test-form-id", body = mapOf())
-    } catch (e: Throwable) {
-      error = e
+    assertThrows(HttpError::class.java) {
+      runBlocking { handlerService.submitForm("test-form-id", body = mapOf()) }
     }
-    assertTrue("Is a HttpError", error is HttpError)
   }
 }
