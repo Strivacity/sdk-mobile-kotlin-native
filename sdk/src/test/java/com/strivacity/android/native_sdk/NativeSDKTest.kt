@@ -24,7 +24,6 @@ import com.strivacity.android.native_sdk.service.HttpService
 import com.strivacity.android.native_sdk.service.LoginHandlerService
 import com.strivacity.android.native_sdk.service.OIDCHandlerService
 import com.strivacity.android.native_sdk.service.OidcParams
-import fakeTokenResponse
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.MockRequestHandleScope
 import io.ktor.client.engine.mock.respond
@@ -106,8 +105,6 @@ internal class NativeSDKRefresh : NativeSDKTestBase() {
 
   @Test
   fun refresh_shortcuts_whenAccessTokenIsMissing() = runTest {
-    //    val storage = buildTestStorage { withMissingAccessToken() }
-    //    val sdk = getInitedNativeSDK(storage, scheduler = testScheduler)
     val sdk = sdkBuilder.apply { scheduler = testScheduler }.store { missingAccessToken() }.build()
 
     val wasRefreshed = sdk.refreshTokensIfNeeded()
@@ -126,27 +123,10 @@ internal class NativeSDKRefresh : NativeSDKTestBase() {
 
   @Test
   fun refresh_shouldRetrieveNewTokenAndStore() = runTest {
-    val updatedTokenResponse = fakeTokenResponse()
-    //    val mockEngine = MockEngine { request ->
-    //      with(request.url.fullPath) {
-    //        when {
-    //          startsWith("/oauth2/token") ->
-    //              respond(
-    //                  content = Json.encodeToString(updatedTokenResponse),
-    //                  status = HttpStatusCode.OK,
-    //                  headers = headersOf(HttpHeaders.ContentType, "application/json"),
-    //              )
-    //          else -> respondBadRequest()
-    //        }
-    //      }
-    //    }
-    //    val httpService = HttpService(mockEngine)
+    val updatedTokenResponse = TokenResponseBuilder().createAsTokenResponse()
     val sdk =
         sdkBuilder
-            .apply {
-              scheduler = testScheduler
-              //              this.httpService = httpService
-            }
+            .apply { scheduler = testScheduler }
             .http { request ->
               when {
                 request.url.encodedPath.startsWith("/oauth2/token") ->
@@ -161,17 +141,6 @@ internal class NativeSDKRefresh : NativeSDKTestBase() {
             .store { expiredAccessToken() }
             .build()
     testClock.advanceBy(2.hours)
-    //    val storage = buildTestStorage { withExpiredAccessToken() }
-    //    val sessionSpy = spy(Session(storage))
-    //    val clock = MutableTestClock()
-    //    val sdk =
-    //        getInitedNativeSDK(
-    //            scheduler = testScheduler,
-    //            clock = clock,
-    //            httpService = httpService,
-    //            session = sessionSpy,
-    //        )
-    //    clock.advanceBy(2.hours)
 
     val currentRefreshToken = sdk.session.profile.value!!.tokenResponse.refreshToken!!
     val wasRefreshed = sdk.refreshTokensIfNeeded()
@@ -190,29 +159,12 @@ internal class NativeSDKRefresh : NativeSDKTestBase() {
       do_refresh_shouldClearStorage(HttpStatusCode.Forbidden)
 
   private fun do_refresh_shouldClearStorage(statusCode: HttpStatusCode) = runTest {
-    //    val mockEngine = MockEngine { request -> respond("", statusCode) }
-    //    val httpService = HttpService(mockEngine)
-    //    val clock = MutableTestClock()
-
     val sdk =
         sdkBuilder
-            .apply {
-              scheduler = testScheduler
-              //              this.httpService = httpService
-            }
+            .apply { scheduler = testScheduler }
             .store { expiredAccessToken() }
             .http { respond("", statusCode) }
             .build()
-
-    //    val storage = buildTestStorage { expiredAccessToken() }
-    //    val sessionSpy = spy(Session(storage))
-    //    val sdk =
-    //        getInitedNativeSDK(
-    //            scheduler = testScheduler,
-    //            clock = clock,
-    //            httpService = httpService,
-    //            session = sessionSpy,
-    //        )
     testClock.advanceBy(2.hours)
     val wasRefreshed = sdk.refreshTokensIfNeeded()
     assertFalse(wasRefreshed)
@@ -421,7 +373,7 @@ internal class NativeSDKLogout : NativeSDKTestBase() {
 
   @Test
   fun shouldPassRequiredParams(): Unit = runTest {
-    val tokenResponse = fakeTokenResponse()
+    val tokenResponse = TokenResponseBuilder().createAsTokenResponse()
     val profile = Profile(tokenResponse)
 
     lateinit var logoutParameters: Parameters

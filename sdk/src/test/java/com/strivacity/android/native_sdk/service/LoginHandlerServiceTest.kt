@@ -8,22 +8,19 @@ import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headers
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.*
+import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LoginHandlerServiceTest {
   @Test
-  fun initCall_shouldThrowSessionExpiredError_whenStatusIs403() = runTest {
+  fun initCall_shouldThrowSessionExpiredError_whenStatusIs403() {
     val service = HttpService(MockEngine { respond("", HttpStatusCode.Forbidden) })
     val handlerService = LoginHandlerService(service, "https://localhost/", "test-session-id")
-    lateinit var error: Throwable
-    try {
-      handlerService.initCall()
-    } catch (e: Throwable) {
-      error = e
-    }
-    assertTrue("Is a SessionExpiredError", error is SessionExpiredError)
+
+    assertThrows(SessionExpiredError::class.java) { runBlocking { handlerService.initCall() } }
   }
 
   @Test
@@ -49,7 +46,8 @@ class LoginHandlerServiceTest {
                   HttpStatusCode.OK,
                   headers { set(HttpHeaders.ContentType, "application/json") },
               )
-            })
+            }
+        )
     val handlerService = LoginHandlerService(service, "https://localhost/", "test-session-id")
     val screen = handlerService.submitForm("test-form-id", body = mapOf())
   }
@@ -63,7 +61,8 @@ class LoginHandlerServiceTest {
                   "",
                   HttpStatusCode.Forbidden,
               )
-            })
+            }
+        )
     val handlerService = LoginHandlerService(service, "https://localhost/", "test-session-id")
     lateinit var error: Throwable
     try {
@@ -83,7 +82,8 @@ class LoginHandlerServiceTest {
                   "",
                   HttpStatusCode.InternalServerError,
               )
-            })
+            }
+        )
     val handlerService = LoginHandlerService(service, "https://localhost/", "test-session-id")
     lateinit var error: Throwable
     try {

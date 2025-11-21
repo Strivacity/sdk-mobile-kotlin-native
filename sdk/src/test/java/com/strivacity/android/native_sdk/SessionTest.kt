@@ -1,7 +1,6 @@
 package com.strivacity.android.native_sdk
 
-import fakeTokenResponse
-import fakeTokenResponseString
+import TokenResponseBuilder
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -42,7 +41,7 @@ class SessionTest {
 
   @Test
   fun load_shouldEmitNewProfile_whenProfileIsStored() {
-    val testTokenResponse = fakeTokenResponseString()
+    val testTokenResponse = TokenResponseBuilder().buildAsString()
     val profile = Profile(Json.decodeFromString(testTokenResponse))
     val encodedProfile = Json.encodeToString(profile)
 
@@ -74,7 +73,7 @@ class SessionTest {
     val session =
         Session(mockStorage).apply {
           setLoginInProgress(true)
-          update(fakeTokenResponse())
+          update(TokenResponseBuilder().createAsTokenResponse())
         }
     verify(mockStorage).set(argThat { equals("profile") }, any<String>())
 

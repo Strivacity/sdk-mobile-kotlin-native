@@ -29,42 +29,32 @@ internal constructor(
     private val clientId: String,
     private val redirectURI: String,
     private val postLogoutURI: String,
+    val session: Session,
+    private val httpService: HttpService = HttpService(),
     private val mode: SdkMode = SdkMode.Android,
     private val dispatchers: SDKDispatchers = DefaultSDKDispatchers,
     private val clock: Clock = Clock.systemUTC(),
-    private val httpService: HttpService,
-    private val oidcHandlerService: OIDCHandlerService,
-    val session: Session,
+    oidcHandlerService: OIDCHandlerService? = null,
 ) {
 
-  companion object {
-    operator fun invoke(
-        issuer: String,
-        clientId: String,
-        redirectURI: String,
-        postLogoutURI: String,
-        storage: Storage,
-        mode: SdkMode = SdkMode.Android,
-        dispatchers: SDKDispatchers = DefaultSDKDispatchers,
-        clock: Clock = Clock.systemUTC(),
-    ): NativeSDK {
-      val httpService = HttpService()
-      val oidcHandler = OIDCHandlerService(httpService)
-      val session = Session(storage)
-      return NativeSDK(
-          issuer,
-          clientId,
-          redirectURI,
-          postLogoutURI,
-          mode,
-          dispatchers,
-          clock,
-          httpService,
-          oidcHandler,
-          session,
-      )
-    }
-  }
+  private val oidcHandlerService: OIDCHandlerService =
+      oidcHandlerService ?: OIDCHandlerService(httpService)
+
+  constructor(
+      issuer: String,
+      clientId: String,
+      redirectURI: String,
+      postLogoutURI: String,
+      storage: Storage,
+      mode: SdkMode = SdkMode.Android,
+  ) : this(
+      issuer = issuer,
+      clientId = clientId,
+      redirectURI = redirectURI,
+      postLogoutURI = postLogoutURI,
+      session = Session(storage),
+      mode = mode,
+  )
 
   var loginController: LoginController? = null
 
@@ -309,8 +299,10 @@ internal constructor(
   internal suspend fun refreshTokensIfNeeded(): Boolean =
       tokenRefreshMutex.withLock {
         val accessTokenExpiresAt = session.profile.value?.accessTokenExpiresAt
-        if (accessTokenExpiresAt == null ||
-            accessTokenExpiresAt.isAfter(Instant.now(clock).plus(1, ChronoUnit.MINUTES))) {
+        if (
+            accessTokenExpiresAt == null ||
+                accessTokenExpiresAt.isAfter(Instant.now(clock).plus(1, ChronoUnit.MINUTES))
+        ) {
           return false
         }
 

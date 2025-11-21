@@ -10,9 +10,10 @@ internal class TokenResponseBuilder(
     var iss: String = "https://localhost/",
     var aud: String = "[\"test_client\"]",
 ) {
-  fun createAsTokenResponse(now: Instant? = null): TokenResponse = decode(buildAsString(now))
+  fun createAsTokenResponse(now: Instant = Instant.now()): TokenResponse =
+      decode(buildAsString(now))
 
-  fun buildAsString(now: Instant? = null): String =
+  fun buildAsString(now: Instant = Instant.now()): String =
       """
 {
     "access_token": "test_access_token",
@@ -24,8 +25,7 @@ internal class TokenResponseBuilder(
 
   fun decode(encoded: String): TokenResponse = Json.decodeFromString(encoded)
 
-  private fun fakeIdToken(nowOverride: Instant? = null): String {
-    val now = nowOverride ?: Instant.now()
+  private fun fakeIdToken(now: Instant): String {
     return """
 {
   "at_hash": "access_token_hash",
@@ -46,7 +46,7 @@ internal class TokenResponseBuilder(
 """
   }
 
-  private fun fakeIdTokenJwt(now: Instant? = null): String {
+  private fun fakeIdTokenJwt(now: Instant): String {
     val header =
         "eyJhbGciOiJSUzI1NiIsImtpZCI6InByaXZhdGU6cGhhREJMWDhhalQ5clNQYkdwRk1fT0FjYjhrQlpDVlVleWtKSjlwVWFoOCIsInR5cCI6IkpXVCJ9"
     val payload = encodeJwtPart(fakeIdToken(now))
@@ -55,8 +55,3 @@ internal class TokenResponseBuilder(
   }
 }
 
-internal fun fakeTokenResponse(now: Instant? = null): TokenResponse =
-    TokenResponseBuilder().createAsTokenResponse(now = now)
-
-internal fun fakeTokenResponseString(now: Instant? = null): String =
-    TokenResponseBuilder().buildAsString(now = now)
