@@ -15,13 +15,13 @@ import com.strivacity.android.native_sdk.service.TokenRefreshParams
 import io.ktor.http.Parameters
 import io.ktor.http.URLBuilder
 import io.ktor.http.path
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.lang.ref.WeakReference
 import java.time.Clock
 import java.time.Instant
 import java.time.temporal.ChronoUnit
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 
 class NativeSDK
 internal constructor(
@@ -219,6 +219,33 @@ internal constructor(
           Log.d("NativeSDK", "Failed to call logout endpoint", e)
         }
       }
+
+  suspend fun revoke() =
+    withContext(dispatchers.IO) {
+      val refreshToken = session.profile.value?.tokenResponse?.refreshToken
+      val accessToken = session.profile.value?.tokenResponse?.accessToken
+
+      if(refreshToken == null && accessToken == null) {
+        // guard statement to return early if there is nothing to revoke
+        session.clear()
+        return@withContext
+      }
+
+      try {
+        val token = refreshToken ?: accessToken!!
+        val typeHint = if (refreshToken != null) "refresh_token" else "access_token"
+        oidcHandlerService.revokeToken(
+          issuer,
+          token = token,
+          typeHint = typeHint,
+          clientId = clientId
+        )
+      } catch (e: Error) {
+        Log.d("NativeSDK", "Failed to call revoke endpoint", e)
+      } finally {
+        session.clear()
+      }
+    }
 
   private suspend fun continueFlow(oidcParams: OidcParams, parameters: Parameters) {
     val sessionId = parameters["session_id"]
