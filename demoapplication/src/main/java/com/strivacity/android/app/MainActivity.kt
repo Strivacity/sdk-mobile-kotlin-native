@@ -142,7 +142,7 @@ fun Login(nativeSDK: NativeSDK) {
       Column {
         Text("Hello ${profile!!.claims["given_name"]}")
         Button(onClick = { coroutineScope.launch { nativeSDK.logout() } }) { Text("Logout") }
-
+        Button(onClick = { coroutineScope.launch { nativeSDK.revoke() } }) {Text("Revoke")}
         Button(
             onClick = {
               coroutineScope.launch {
