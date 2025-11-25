@@ -1,0 +1,29 @@
+name: test
+
+on:
+  pull_request:
+    branches: [ "main" ]
+  push:
+    branches: [ "test/improve-test-coverage" ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v5
+
+      - name: "Setup up java"
+        uses: actions/setup-java@v5
+        with:
+          distribution: "temurin"
+          java-version: "21"
+
+      - name: "Setup gradle"
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: "Run tests"
+        run: ./gradlew :sdk:test --no-daemon
+        

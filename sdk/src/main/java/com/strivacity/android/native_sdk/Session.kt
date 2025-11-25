@@ -31,6 +31,8 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.long
 import kotlinx.serialization.json.longOrNull
 
+internal typealias JSON = Map<String, Any?>
+
 private const val PROFILE = "profile"
 
 class Session(private val storage: Storage) {
@@ -39,6 +41,9 @@ class Session(private val storage: Storage) {
 
   private val _profile = MutableStateFlow<Profile?>(null)
   val profile: StateFlow<Profile?> = _profile
+
+  /** Tag used for logging */
+  private val TAG = Session::class.simpleName
 
   fun setLoginInProgress(value: Boolean) {
     _loginInProgress.value = value
@@ -59,7 +64,7 @@ class Session(private val storage: Storage) {
         _profile.value = Json.decodeFromString(profileContent)
       }
     } catch (e: Exception) {
-      Log.d("Session", "Failed to parse profileContent", e)
+      Log.d(TAG, "Failed to parse profileContent", e)
     }
   }
 
@@ -77,7 +82,7 @@ internal constructor(
     internal val tokenResponse: TokenResponse,
     @Serializable(with = EpochMillisInstantSerializer::class)
     internal val accessTokenExpiresAt: Instant,
-    @Transient val claims: Map<String, Any?> = extractClaims(tokenResponse)
+    @Transient val claims: JSON = extractClaims(tokenResponse),
 ) {
   internal constructor(
       tokenResponse: TokenResponse
@@ -93,19 +98,22 @@ internal fun extractClaims(tokenResponse: TokenResponse): Map<String, Any?> {
   val idToken = tokenResponse.idToken
   val parts = idToken.split(".")
 
-  return Json.decodeFromString(MapStringAnySerializer, String(Base64.getDecoder().decode(parts[1])))
+  return Json.decodeFromString(
+      MapStringAnySerializer,
+      String(Base64.getUrlDecoder().decode(parts[1])),
+  )
 }
 
-object MapStringAnySerializer : KSerializer<Map<String, Any?>> {
+object MapStringAnySerializer : KSerializer<JSON> {
   override val descriptor: SerialDescriptor =
       MapSerializer(String.serializer(), JsonElement.serializer()).descriptor
 
-  override fun deserialize(decoder: Decoder): Map<String, Any?> {
+  override fun deserialize(decoder: Decoder): JSON {
     val input = decoder as? JsonDecoder ?: error("JsonDecoder expected")
     val jsonObject = input.decodeJsonElement().jsonObject
 
     @Suppress("UNCHECKED_CAST")
-    return jsonElementToAny(jsonObject) as Map<String, Any?>
+    return jsonElementToAny(jsonObject) as JSON
   }
 
   private fun jsonElementToAny(value: JsonElement): Any? {
@@ -132,7 +140,9 @@ object MapStringAnySerializer : KSerializer<Map<String, Any?>> {
 private object EpochMillisInstantSerializer : KSerializer<Instant> {
   override val descriptor =
       kotlinx.serialization.descriptors.PrimitiveSerialDescriptor(
-          "java.time.Instant.epochmillis", kotlinx.serialization.descriptors.PrimitiveKind.LONG)
+          "java.time.Instant.epochmillis",
+          kotlinx.serialization.descriptors.PrimitiveKind.LONG,
+      )
 
   override fun serialize(encoder: Encoder, value: Instant) {
     encoder.encodeLong(value.toEpochMilli())

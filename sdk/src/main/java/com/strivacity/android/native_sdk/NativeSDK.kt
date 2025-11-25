@@ -2,6 +2,9 @@ package com.strivacity.android.native_sdk
 
 import android.content.Context
 import android.util.Log
+import androidx.browser.customtabs.CustomTabsIntent
+import androidx.core.net.toUri
+import com.strivacity.android.native_sdk.render.FallbackHandler
 import com.strivacity.android.native_sdk.render.LoginController
 import com.strivacity.android.native_sdk.service.HttpService
 import com.strivacity.android.native_sdk.service.LoginHandlerService
@@ -13,42 +16,63 @@ import io.ktor.http.Parameters
 import io.ktor.http.URLBuilder
 import io.ktor.http.path
 import java.lang.ref.WeakReference
+import java.time.Clock
 import java.time.Instant
 import java.time.temporal.ChronoUnit
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
-class NativeSDK(
-    private val issuer: String,
-    private val clientId: String,
-    private val redirectURI: String,
-    private val postLogoutURI: String,
-    storage: Storage,
-    private val mode: SdkMode = SdkMode.Android
+class NativeSDK
+internal constructor(
+  private val issuer: String,
+  private val clientId: String,
+  private val redirectURI: String,
+  private val postLogoutURI: String,
+  val session: Session,
+  private val httpService: HttpService = HttpService(),
+  private val mode: SdkMode = SdkMode.Android,
+  private val dispatchers: SDKDispatchers = DefaultSDKDispatchers,
+  private val clock: Clock = Clock.systemUTC(),
+  oidcHandlerServiceOverride: OIDCHandlerService? = null,
 ) {
-  val session: Session = Session(storage)
+
+  private val oidcHandlerService: OIDCHandlerService =
+      oidcHandlerServiceOverride ?: OIDCHandlerService(httpService)
+
+  constructor(
+      issuer: String,
+      clientId: String,
+      redirectURI: String,
+      postLogoutURI: String,
+      storage: Storage,
+      mode: SdkMode = SdkMode.Android,
+  ) : this(
+      issuer = issuer,
+      clientId = clientId,
+      redirectURI = redirectURI,
+      postLogoutURI = postLogoutURI,
+      session = Session(storage),
+      mode = mode,
+  )
+
   var loginController: LoginController? = null
 
-  private val httpService = HttpService()
-  private val oidcHandlerService = OIDCHandlerService(httpService)
-
-  private val tokenRefreshMutex = Mutex()
+  internal val tokenRefreshMutex = Mutex()
 
   suspend fun initializeSession() =
-      withContext(Dispatchers.IO) {
+      withContext(dispatchers.IO) {
         session.load()
         refreshTokensIfNeeded()
       }
 
   suspend fun login(
-      context: WeakReference<Context>,
+      fallbackHandler: FallbackHandler,
       onSuccess: () -> Unit,
       onError: (Error) -> Unit,
-      loginParameters: LoginParameters? = null
+      loginParameters: LoginParameters? = null,
   ) =
-      withContext(Dispatchers.IO) {
+      withContext(dispatchers.IO) {
         val oidcParams = OidcParams(onSuccess, onError)
 
         val url =
@@ -92,7 +116,7 @@ class NativeSDK(
 
           val loginHandlerService = LoginHandlerService(httpService, issuer, sessionId)
           val loginController =
-              LoginController(this@NativeSDK, loginHandlerService, oidcParams, context)
+              LoginController(this@NativeSDK, loginHandlerService, oidcParams, fallbackHandler)
 
           loginController.initialize()
           this@NativeSDK.loginController = loginController
@@ -103,16 +127,40 @@ class NativeSDK(
         }
       }
 
+  @Deprecated("Use login with fallbackHandler instead. This call will be removed in future version")
+  suspend fun login(
+      context: WeakReference<Context>,
+      onSuccess: () -> Unit,
+      onError: (Error) -> Unit,
+      loginParameters: LoginParameters? = null,
+  ) {
+    val customTabsHandler: FallbackHandler = { uri ->
+      run {
+        val ctx = context.get() ?: throw IllegalStateException("Context is no longer available")
+
+        val customTabsIntent = CustomTabsIntent.Builder().build()
+        customTabsIntent.launchUrl(ctx, uri.toUri())
+      }
+    }
+    return login(
+        fallbackHandler = customTabsHandler,
+        onSuccess = onSuccess,
+        onError = onError,
+        loginParameters = loginParameters,
+    )
+  }
+
   suspend fun isAuthenticated(): Boolean =
-      withContext(Dispatchers.IO) {
+      withContext(dispatchers.IO) {
         refreshTokensIfNeeded()
-        return@withContext session.profile.value != null
+        session.profile.value != null
       }
 
   suspend fun getAccessToken(): String? =
-      withContext(Dispatchers.IO) {
+      withContext(dispatchers.IO) {
         refreshTokensIfNeeded()
-        return@withContext session.profile.value?.tokenResponse?.accessToken
+        val profile = session.profile.value ?: return@withContext null
+        return@withContext profile.tokenResponse.accessToken
       }
 
   fun isRedirectExpected(): Boolean {
@@ -120,7 +168,7 @@ class NativeSDK(
   }
 
   suspend fun continueFlow(uri: String?) =
-      withContext(Dispatchers.IO) {
+      withContext(dispatchers.IO) {
         val oidcParams = loginController?.oidcParams ?: return@withContext
 
         if (uri == null) {
@@ -146,8 +194,8 @@ class NativeSDK(
     }
   }
 
-  suspend fun logout() =
-      withContext(Dispatchers.IO) {
+  suspend fun logout(): Unit =
+      withContext(dispatchers.IO) {
         val idToken = session.profile.value?.tokenResponse?.idToken
 
         session.clear()
@@ -207,7 +255,8 @@ class NativeSDK(
       val tokenResponse =
           oidcHandlerService.tokenExchange(
               URLBuilder(issuer).apply { path("/oauth2/token") }.toString(),
-              TokenExchangeParams(code, oidcParams.codeVerifier, redirectURI, clientId))
+              TokenExchangeParams(code, oidcParams.codeVerifier, redirectURI, clientId),
+          )
 
       val claims = extractClaims(tokenResponse)
       val responseNonce = claims["nonce"] as? String
@@ -242,36 +291,44 @@ class NativeSDK(
     }
   }
 
-  private suspend fun refreshTokensIfNeeded() {
-    tokenRefreshMutex.withLock {
-      val accessTokenExpiresAt = session.profile.value?.accessTokenExpiresAt
-      if (accessTokenExpiresAt == null ||
-          accessTokenExpiresAt.isAfter(Instant.now().plus(1, ChronoUnit.MINUTES))) {
-        return
-      }
-
-      val refreshToken = session.profile.value?.tokenResponse?.refreshToken
-      if (refreshToken == null) {
-        session.clear()
-        return
-      }
-
-      try {
-        val tokenResponse =
-            oidcHandlerService.tokenRefresh(
-                URLBuilder(issuer).apply { path("/oauth2/token") }.toString(),
-                TokenRefreshParams(refreshToken, clientId))
-
-        session.update(tokenResponse)
-      } catch (e: HttpError) {
-        if (e.statusCode in listOf(401, 403)) {
-          session.clear()
-          return
+  /**
+   * Check if access token should be refreshed and if so, attempt to do so
+   *
+   * @return Boolean `true` if access token was refreshed, `false` otherwise
+   */
+  internal suspend fun refreshTokensIfNeeded(): Boolean =
+      tokenRefreshMutex.withLock {
+        val accessTokenExpiresAt = session.profile.value?.accessTokenExpiresAt
+        if (
+            accessTokenExpiresAt == null ||
+                accessTokenExpiresAt.isAfter(Instant.now(clock).plus(1, ChronoUnit.MINUTES))
+        ) {
+          return false
         }
-        throw e
+
+        val refreshToken = session.profile.value?.tokenResponse?.refreshToken
+        if (refreshToken == null) {
+          session.clear()
+          return false
+        }
+
+        try {
+          val tokenResponse =
+              oidcHandlerService.tokenRefresh(
+                  URLBuilder(issuer).apply { path("/oauth2/token") }.toString(),
+                  TokenRefreshParams(refreshToken, clientId),
+              )
+
+          session.update(tokenResponse)
+          return true
+        } catch (e: HttpError) {
+          if (e.statusCode in listOf(401, 403)) {
+            session.clear()
+            return false
+          }
+          throw e
+        }
       }
-    }
-  }
 
   private fun cleanup() {
     session.setLoginInProgress(false)
@@ -283,10 +340,10 @@ data class LoginParameters(
     val prompt: String? = null,
     val loginHint: String? = null,
     val acrValue: String? = null,
-    val scopes: List<String>? = null
+    val scopes: List<String>? = null,
 )
 
 enum class SdkMode(val value: String) {
   Android("android"),
-  AndroidMinimal("android-minimal")
+  AndroidMinimal("android-minimal"),
 }
