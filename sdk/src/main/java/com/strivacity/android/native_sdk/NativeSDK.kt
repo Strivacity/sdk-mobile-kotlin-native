@@ -220,6 +220,38 @@ internal constructor(
         }
       }
 
+  suspend fun revoke() =
+    withContext(Dispatchers.IO) {
+      val refreshToken = session.profile.value?.tokenResponse?.refreshToken
+      val accessToken = session.profile.value?.tokenResponse?.accessToken
+
+      try {
+        val url = URLBuilder(issuer)
+
+        if (refreshToken != null) {
+          url.apply {
+            path("/oauth2/revoke")
+            parameters.append("client_id", clientId)
+            parameters.append("token_type_hint", "refresh_token")
+            parameters.append("token", refreshToken)
+          }
+        } else if (accessToken != null) {
+          url.apply {
+            path("/oauth2/revoke")
+            parameters.append("client_id", clientId)
+            parameters.append("token_type_hint", "access_token")
+            parameters.append("token", accessToken)
+          }
+        }
+
+        oidcHandlerService.handleCall(url.build())
+      } catch (e: Error) {
+        Log.d("NativeSDK", "Failed to call revoke endpoint", e)
+      }
+
+      session.clear()
+    }
+
   private suspend fun continueFlow(oidcParams: OidcParams, parameters: Parameters) {
     val sessionId = parameters["session_id"]
     if (sessionId != null) {
