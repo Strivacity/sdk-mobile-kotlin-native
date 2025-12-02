@@ -28,13 +28,13 @@ class SessionTest {
 
   @Test
   fun loadingState_shouldDefaultToFalse() = runTest {
-    val session = Session(storage)
+    val session = Session(storage, mock())
     assertFalse(session.loginInProgress.first())
   }
 
   @Test
   fun loadingState_shouldEmitNewState() = runTest {
-    val session = Session(storage)
+    val session = Session(storage, mock())
     session.setLoginInProgress(true)
     assertTrue(session.loginInProgress.first())
   }
@@ -47,7 +47,7 @@ class SessionTest {
 
     val mockStorage = mock<Storage> { on { get(any()) } doReturn encodedProfile }
 
-    val session = Session(mockStorage)
+    val session = Session(mockStorage, mock())
     assertNull(session.profile.value)
     session.load()
     assertNotNull(session.profile.value)
@@ -59,7 +59,7 @@ class SessionTest {
   @Test
   fun load_shouldNotEmit_whenProfileIsMissing() {
     val mockStorage = mock<Storage> { on { get(any()) } doReturn null }
-    val session = Session(mockStorage)
+    val session = Session(mockStorage, mock())
     session.load()
     assertNull(session.profile.value)
 
@@ -71,7 +71,7 @@ class SessionTest {
   fun clear_shouldRestoreInitialState() {
     val mockStorage = mock<Storage>()
     val session =
-        Session(mockStorage).apply {
+        Session(mockStorage, mock()).apply {
           setLoginInProgress(true)
           update(TokenResponseBuilder().createAsTokenResponse())
         }
