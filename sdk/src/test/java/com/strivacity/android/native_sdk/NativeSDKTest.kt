@@ -2,6 +2,7 @@
 
 package com.strivacity.android.native_sdk
 
+import FakeLogging
 import TokenResponseBuilder
 import com.strivacity.android.native_sdk.mocks.MutableTestClock
 import com.strivacity.android.native_sdk.mocks.NativeSDKBuilder
@@ -61,15 +62,19 @@ internal abstract class NativeSDKTestBase {
   protected lateinit var testSession: Session
   protected lateinit var testStorage: TestStorage
 
+  protected lateinit var testLogging: Logging
+
   @Before
   fun setUp() {
     testStorage = TestStorage()
-    testSession = spy(Session(testStorage))
+    testLogging = FakeLogging()
+    testSession = spy(Session(testStorage, testLogging))
     testClock = MutableTestClock()
     sdkBuilder = NativeSDKBuilder {
       this.storage = testStorage
       this.session = testSession
       this.clock = testClock
+      this.logging = testLogging
     }
   }
 }
@@ -303,7 +308,10 @@ internal class NativeSDKTest : NativeSDKTestBase() {
   @Test
   fun continueFlow_shouldCancelFlow_whenUriIsNull() = runTest {
     val httpService =
-        HttpService(MockEngine { throw AssertionError("Test should never invoke HttpClient") })
+        HttpService(
+            logging = FakeLogging(),
+            MockEngine { throw AssertionError("Test should never invoke HttpClient") },
+        )
     val sdk =
         sdkBuilder
             .apply {
@@ -323,6 +331,7 @@ internal class NativeSDKTest : NativeSDKTestBase() {
                 onError = { err -> error = err },
             ),
             fallbackHandler = {},
+            logging = FakeLogging(),
         )
     sdk.loginController = loginController
 
@@ -368,8 +377,8 @@ internal class NativeSDKLogout : NativeSDKTestBase() {
         }
       }
     }
-    val httpService = HttpService(mockEngine)
-    val oidcHandlerService = spy(OIDCHandlerService(httpService))
+    val httpService = HttpService(logging = FakeLogging(), mockEngine)
+    val oidcHandlerService = spy(OIDCHandlerService(httpService, logging = FakeLogging()))
     val sdk =
         sdkBuilder
             .store { storeProfile(profile) }

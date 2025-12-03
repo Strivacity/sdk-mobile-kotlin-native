@@ -1,6 +1,5 @@
 package com.strivacity.android.native_sdk
 
-import android.util.Log
 import com.strivacity.android.native_sdk.service.TokenResponse
 import java.time.Instant
 import java.util.Base64
@@ -35,15 +34,16 @@ internal typealias JSON = Map<String, Any?>
 
 private const val PROFILE = "profile"
 
-class Session(private val storage: Storage) {
+class Session(
+    private val storage: Storage,
+    private val logging: Logging,
+) {
   private val _loginInProgress = MutableStateFlow(false)
   val loginInProgress: StateFlow<Boolean> = _loginInProgress
 
   private val _profile = MutableStateFlow<Profile?>(null)
   val profile: StateFlow<Profile?> = _profile
 
-  /** Tag used for logging */
-  private val TAG = Session::class.simpleName
 
   fun setLoginInProgress(value: Boolean) {
     _loginInProgress.value = value
@@ -53,26 +53,38 @@ class Session(private val storage: Storage) {
     _loginInProgress.value = false
     _profile.value = Profile(tokenResponse)
 
-    storage.set(PROFILE, Json.encodeToString(_profile.value))
+    try {
+      storage.set(PROFILE, Json.encodeToString(_profile.value))
+      logging.debug("Session: Profile saved to storage successfully")
+    } catch (e: Exception) {
+      logging.error("Session: Failed to save profile to storage ${e.message}", e)
+      throw e
+    }
   }
 
   internal fun load() {
+    logging.debug("Session: Loading profile from storage")
     try {
       val profileContent = storage.get(PROFILE)
 
       if (profileContent != null) {
         _profile.value = Json.decodeFromString(profileContent)
+        logging.debug("Session: Profile loaded successfully from storage")
+      } else {
+        logging.debug("Session: No profile found in storage")
       }
     } catch (e: Exception) {
-      Log.d(TAG, "Failed to parse profileContent", e)
+      logging.warn("Session: Failed to load profile from storage", e)
     }
   }
 
   internal fun clear() {
+    logging.debug("Session: Clearing session data")
     _loginInProgress.value = false
     _profile.value = null
 
     storage.delete(PROFILE)
+    logging.debug("Session: Session cleared successfully")
   }
 }
 

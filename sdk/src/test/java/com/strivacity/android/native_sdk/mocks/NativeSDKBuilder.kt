@@ -1,5 +1,7 @@
 package com.strivacity.android.native_sdk.mocks
 
+import FakeLogging
+import com.strivacity.android.native_sdk.Logging
 import com.strivacity.android.native_sdk.NativeSDK
 import com.strivacity.android.native_sdk.Session
 import com.strivacity.android.native_sdk.Storage
@@ -27,6 +29,7 @@ internal class NativeSDKBuilder {
   var httpService: HttpService? = null
   var oidcHandlerService: OIDCHandlerService? = null
   var session: Session? = null
+  var logging: Logging? = null
 
   private val httpHandlers: MutableList<ChainedMockRequestHandler> = mutableListOf()
 
@@ -34,6 +37,7 @@ internal class NativeSDKBuilder {
     assert(storage != null || session != null) { "Either storage or session must be provided" }
     val dispatchers = TestSDKDispatcher(StandardTestDispatcher(scheduler))
     lateinit var httpService: HttpService
+    val logging = this.logging ?: FakeLogging()
     if (this.httpService == null && httpHandlers.isNotEmpty()) {
       val engineConfig = MockEngineConfig()
       // such a handler that iterates over defined handlers and invokes the next until one
@@ -51,9 +55,9 @@ internal class NativeSDKBuilder {
           throw Exception("Handler not defined for request: $request")
         }
       }
-      httpService = HttpService(MockEngine(engineConfig))
+      httpService = HttpService(logging = logging, MockEngine(engineConfig))
     } else {
-      httpService = this.httpService ?: HttpService()
+      httpService = this.httpService ?: HttpService(logging = logging)
     }
     val sdk =
         NativeSDK(
@@ -63,9 +67,10 @@ internal class NativeSDKBuilder {
             postLogoutURI = "test-scheme://my-test-app/logoutCallback",
             dispatchers = dispatchers,
             clock = clock,
-            session = session ?: Session(storage!!),
+            session = session ?: Session(storage!!, logging),
+            logging = logging,
             httpService = httpService,
-            oidcHandlerServiceOverride = oidcHandlerService ?: OIDCHandlerService(httpService),
+            oidcHandlerService = oidcHandlerService ?: OIDCHandlerService(httpService, logging),
         )
     sdk.session.load()
     return sdk
