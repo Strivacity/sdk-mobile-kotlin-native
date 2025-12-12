@@ -4,12 +4,15 @@ import com.strivacity.android.native_sdk.Error
 import com.strivacity.android.native_sdk.HttpError
 import com.strivacity.android.native_sdk.util.OIDCParamGenerator
 import io.ktor.client.call.body
+import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.request
 import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
 import io.ktor.http.URLBuilder
 import io.ktor.http.Url
 import io.ktor.http.parameters
+import io.ktor.http.path
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -59,6 +62,30 @@ internal class OIDCHandlerService(private val httpService: HttpService) {
     }
 
     return httpResponse.body()
+  }
+
+  suspend fun revokeToken(
+    issuer: String,
+    token: String,
+    typeHint: String,
+    clientId: String
+  ): HttpResponse {
+    val url = URLBuilder(issuer).apply {
+      path("/oauth2/revoke")
+    }
+
+    val httpResponse = httpService.postForm(url.buildString(), parameters {
+      append("client_id", clientId)
+      append("token_type_hint", typeHint)
+      append("token", token)
+    })
+
+    if (httpResponse.status != HttpStatusCode.OK) {
+      throw HttpError(statusCode = httpResponse.status.value)
+    }
+
+    return httpResponse
+
   }
 }
 

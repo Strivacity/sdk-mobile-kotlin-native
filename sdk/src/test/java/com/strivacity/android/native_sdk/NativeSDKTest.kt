@@ -27,10 +27,12 @@ import com.strivacity.android.native_sdk.service.OidcParams
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.MockRequestHandleScope
 import io.ktor.client.engine.mock.respond
+import io.ktor.client.request.request
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
+import io.ktor.http.encodedPath
 import io.ktor.http.fullPath
 import io.ktor.http.headers
 import io.ktor.http.headersOf
@@ -132,6 +134,7 @@ internal class NativeSDKRefresh : NativeSDKTestBase() {
                         status = HttpStatusCode.OK,
                         headers = headersOf(HttpHeaders.ContentType, "application/json"),
                     )
+
                 else -> null
               }
             }
@@ -364,6 +367,7 @@ internal class NativeSDKLogout : NativeSDKTestBase() {
                     },
             )
           }
+
           else -> throw AssertionError("Unexpected http call to: ${request.url}")
         }
       }
@@ -392,6 +396,40 @@ internal class NativeSDKLogout : NativeSDKTestBase() {
             "test-scheme://my-test-app/logoutCallback",
         ),
     )
+  }
+}
+
+internal class NativeSDKRevoke : NativeSDKTestBase() {
+
+  @Test
+  fun shouldShortCircuit_whenUserIsLoggedOut() = runTest {
+    val sdk = sdkBuilder.apply { scheduler = testScheduler }.store { missingAccessToken() }.build()
+
+    sdk.revoke()
+
+    assertNull(sdk.session.profile.value)
+  }
+
+  @Test
+  fun shouldClearSession_whenTokenIsRevoked200() = runTest {
+    val sdk =
+        sdkBuilder
+            .apply { scheduler = testScheduler }
+            .store { validAccessToken() }
+            .http { request ->
+              if (request.url.encodedPath.startsWith("/oauth2/revoke")) {
+                respond("", HttpStatusCode.OK)
+              } else {
+                respond("", HttpStatusCode.InternalServerError)
+              }
+            }
+            .build()
+
+    assertNotNull(sdk.session.profile.value)
+
+    sdk.revoke()
+
+    assertNull(sdk.session.profile.value)
   }
 }
 

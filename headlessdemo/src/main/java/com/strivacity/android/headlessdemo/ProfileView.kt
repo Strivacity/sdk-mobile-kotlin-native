@@ -50,6 +50,14 @@ fun ProfileView(nativeSDK: NativeSDK) {
 
     Text("")
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+        Button(
+            colors = ButtonDefaults.buttonColors(containerColor = StrivacityPrimary),
+            onClick = { coroutineScope.launch { nativeSDK.revoke() } }) {
+            Text("Revoke")
+        }
+    }
+
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
       Button(
           colors = ButtonDefaults.buttonColors(containerColor = StrivacityPrimary),
           onClick = { coroutineScope.launch { nativeSDK.logout() } }) {
