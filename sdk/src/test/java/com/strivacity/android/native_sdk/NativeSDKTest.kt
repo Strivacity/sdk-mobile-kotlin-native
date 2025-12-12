@@ -28,10 +28,12 @@ import com.strivacity.android.native_sdk.service.OidcParams
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.MockRequestHandleScope
 import io.ktor.client.engine.mock.respond
+import io.ktor.client.request.request
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
+import io.ktor.http.encodedPath
 import io.ktor.http.fullPath
 import io.ktor.http.headers
 import io.ktor.http.headersOf
@@ -127,21 +129,22 @@ internal class NativeSDKRefresh : NativeSDKTestBase() {
   fun refresh_shouldRetrieveNewTokenAndStore() = runTest {
     val updatedTokenResponse = TokenResponseBuilder().createAsTokenResponse()
     val sdk =
-        sdkBuilder
-            .apply { scheduler = testScheduler }
-            .http { request ->
-              when {
-                request.url.encodedPath.startsWith("/oauth2/token") ->
-                    respond(
-                        content = Json.encodeToString(updatedTokenResponse),
-                        status = HttpStatusCode.OK,
-                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
-                    )
-                else -> null
-              }
-            }
-            .store { expiredAccessToken() }
-            .build()
+      sdkBuilder
+        .apply { scheduler = testScheduler }
+        .http { request ->
+          when {
+            request.url.encodedPath.startsWith("/oauth2/token") ->
+              respond(
+                content = Json.encodeToString(updatedTokenResponse),
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+              )
+
+            else -> null
+          }
+        }
+        .store { expiredAccessToken() }
+        .build()
     testClock.advanceBy(2.hours)
 
     val currentRefreshToken = sdk.session.profile.value!!.tokenResponse.refreshToken!!
@@ -154,19 +157,19 @@ internal class NativeSDKRefresh : NativeSDKTestBase() {
 
   @Test
   fun refresh_shouldClearStorage_onUnauthorized() =
-      do_refresh_shouldClearStorage(HttpStatusCode.Unauthorized)
+    do_refresh_shouldClearStorage(HttpStatusCode.Unauthorized)
 
   @Test
   fun refresh_shouldClearStorage_onForbidden() =
-      do_refresh_shouldClearStorage(HttpStatusCode.Forbidden)
+    do_refresh_shouldClearStorage(HttpStatusCode.Forbidden)
 
   private fun do_refresh_shouldClearStorage(statusCode: HttpStatusCode) = runTest {
     val sdk =
-        sdkBuilder
-            .apply { scheduler = testScheduler }
-            .store { expiredAccessToken() }
-            .http { respond("", statusCode) }
-            .build()
+      sdkBuilder
+        .apply { scheduler = testScheduler }
+        .store { expiredAccessToken() }
+        .http { respond("", statusCode) }
+        .build()
     testClock.advanceBy(2.hours)
     val wasRefreshed = sdk.refreshTokensIfNeeded()
     assertFalse(wasRefreshed)
@@ -278,9 +281,9 @@ internal class NativeSDKCancelFlow : NativeSDKTestBase() {
     val sdk = sdkBuilder.build()
     var ex: Throwable? = null
     sdk.loginController =
-        mock<LoginController>(defaultAnswer = Mockito.RETURNS_DEEP_STUBS) {
-          on { oidcParams.onError } doReturn { error -> run { ex = error } }
-        }
+      mock<LoginController>(defaultAnswer = Mockito.RETURNS_DEEP_STUBS) {
+        on { oidcParams.onError } doReturn { error -> run { ex = error } }
+      }
 
     val error = HostedFlowCanceledError()
     sdk.cancelFlow(error = error)
@@ -294,44 +297,44 @@ internal class NativeSDKTest : NativeSDKTestBase() {
   fun publicCtorApi_shouldNotBeBroken() {
     // tests if ctor signature is backward compatible
     val sdk =
-        NativeSDK(
-            issuer = "test://localhost",
-            clientId = "clientId",
-            redirectURI = "test://localhost/entry",
-            postLogoutURI = "test://localhost/logout",
-            storage = TestStorage(),
-            mode = SdkMode.Android,
-        )
+      NativeSDK(
+        issuer = "test://localhost",
+        clientId = "clientId",
+        redirectURI = "test://localhost/entry",
+        postLogoutURI = "test://localhost/logout",
+        storage = TestStorage(),
+        mode = SdkMode.Android,
+      )
     assertNotNull(sdk)
   }
 
   @Test
   fun continueFlow_shouldCancelFlow_whenUriIsNull() = runTest {
     val httpService =
-        HttpService(
+      HttpService(
             logging = FakeLogging(),
             MockEngine { throw AssertionError("Test should never invoke HttpClient") },
         )
     val sdk =
-        sdkBuilder
-            .apply {
-              scheduler = testScheduler
-              this.httpService = httpService
-            }
-            .build()
+      sdkBuilder
+        .apply {
+          scheduler = testScheduler
+          this.httpService = httpService
+        }
+        .build()
     val loginHandlerService =
-        LoginHandlerService(httpService, "http://localhost/", "test-session-id")
+      LoginHandlerService(httpService, "http://localhost/", "test-session-id")
     lateinit var error: Error
     val loginController =
-        LoginController(
-            sdk,
-            loginHandlerService,
-            OidcParams(
-                onSuccess = {},
-                onError = { err -> error = err },
-            ),
-            fallbackHandler = {},
-            logging = FakeLogging(),
+      LoginController(
+        sdk,
+        loginHandlerService,
+        OidcParams(
+          onSuccess = {},
+          onError = { err -> error = err },
+        ),
+        fallbackHandler = {},
+      logging = FakeLogging(),
         )
     sdk.loginController = loginController
 
@@ -364,15 +367,16 @@ internal class NativeSDKLogout : NativeSDKTestBase() {
           fullPath.startsWith("/oauth2/sessions/logout") -> {
             logoutParameters = parameters
             respond(
-                content = "",
-                status = HttpStatusCode.Found,
-                headers =
-                    headers {
-                      set(HttpHeaders.ContentType, ContentType.Text.Html.contentType)
-                      set(HttpHeaders.Location, "test-scheme://my-test-app/logoutCallback")
-                    },
+              content = "",
+              status = HttpStatusCode.Found,
+              headers =
+                headers {
+                  set(HttpHeaders.ContentType, ContentType.Text.Html.contentType)
+                  set(HttpHeaders.Location, "test-scheme://my-test-app/logoutCallback")
+                },
             )
           }
+
           else -> throw AssertionError("Unexpected http call to: ${request.url}")
         }
       }
@@ -380,27 +384,62 @@ internal class NativeSDKLogout : NativeSDKTestBase() {
     val httpService = HttpService(logging = FakeLogging(), mockEngine)
     val oidcHandlerService = spy(OIDCHandlerService(httpService, logging = FakeLogging()))
     val sdk =
-        sdkBuilder
-            .store { storeProfile(profile) }
-            .apply {
-              scheduler = testScheduler
-              this.oidcHandlerService = oidcHandlerService
-            }
-            .build()
+      sdkBuilder
+        .store { storeProfile(profile) }
+        .apply {
+          scheduler = testScheduler
+        }
+        .build()
 
     sdk.logout()
 
     assertTrue(
-        "Logout should contain id_token_hint param",
-        logoutParameters.contains("id_token_hint", tokenResponse.idToken),
+      "Logout should contain id_token_hint param",
+      logoutParameters.contains("id_token_hint", tokenResponse.idToken),
     )
     assertTrue(
-        "Logout should contain post_logout_redirect_uri",
-        logoutParameters.contains(
-            "post_logout_redirect_uri",
-            "test-scheme://my-test-app/logoutCallback",
-        ),
+      "Logout should contain post_logout_redirect_uri",
+      logoutParameters.contains(
+        "post_logout_redirect_uri",
+        "test-scheme://my-test-app/logoutCallback",
+      ),
     )
+  }
+}
+
+internal class NativeSDKRevoke : NativeSDKTestBase() {
+
+  @Test
+  fun shouldShortCircuit_whenUserIsLoggedOut() = runTest {
+    val sdk = sdkBuilder
+      .apply { scheduler = testScheduler }
+      .store { missingAccessToken() }
+      .build()
+
+    sdk.revoke()
+
+    assertNull(sdk.session.profile.value)
+  }
+
+  @Test
+  fun shouldClearSession_whenTokenIsRevoked200() = runTest {
+    val sdk = sdkBuilder
+      .apply { scheduler = testScheduler }
+      .store { validAccessToken() }
+      .http { request ->
+        if (request.url.encodedPath.startsWith("/oauth2/revoke")) {
+          respond("", HttpStatusCode.OK)
+        } else {
+          respond("", HttpStatusCode.InternalServerError)
+        }
+      }
+      .build()
+
+    assertNotNull(sdk.session.profile.value)
+
+    sdk.revoke()
+
+    assertNull(sdk.session.profile.value)
   }
 }
 
@@ -410,28 +449,28 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
     lateinit var requestParams: Parameters
 
     val sdk =
-        sdkBuilder
-            .apply { scheduler = testScheduler }
-            .http(
-                captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
-                  requestParams = params
-                }
-            )
-            .http(MockRequestHandleScope::respondInit200)
-            .build()
+      sdkBuilder
+        .apply { scheduler = testScheduler }
+        .http(
+          captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
+            requestParams = params
+          }
+        )
+        .http(MockRequestHandleScope::respondInit200)
+        .build()
     val testFallbackHandler: FallbackHandler = { uri -> run { println(uri) } }
     sdk.login(
-        onSuccess = {},
-        onError = {},
-        fallbackHandler = testFallbackHandler,
-        loginParameters = LoginParameters(),
+      onSuccess = {},
+      onError = {},
+      fallbackHandler = testFallbackHandler,
+      loginParameters = LoginParameters(),
     )
     assertEquals("response_type", requestParams["response_type"], "code")
     assertEquals("client_id", requestParams["client_id"], "test_client")
     assertEquals(
-        "redirect_uri",
-        requestParams["redirect_uri"],
-        "test-scheme://my-test-app/redirUrl",
+      "redirect_uri",
+      requestParams["redirect_uri"],
+      "test-scheme://my-test-app/redirUrl",
     )
     assertNotNull(requestParams["state"])
     assertNotNull(requestParams["nonce"])
@@ -446,22 +485,22 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
   fun login_shouldRespectScopesParam() = runTest {
     lateinit var requestParams: Parameters
     val sdk =
-        sdkBuilder
-            .apply { scheduler = testScheduler }
-            .http(
-                captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
-                  requestParams = params
-                }
-            )
-            .http(MockRequestHandleScope::respondInit200)
-            .build()
+      sdkBuilder
+        .apply { scheduler = testScheduler }
+        .http(
+          captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
+            requestParams = params
+          }
+        )
+        .http(MockRequestHandleScope::respondInit200)
+        .build()
 
     val testFallbackHandler: FallbackHandler = { uri -> run { println(uri) } }
     sdk.login(
-        onSuccess = {},
-        onError = {},
-        fallbackHandler = testFallbackHandler,
-        loginParameters = LoginParameters(scopes = listOf("profile", "openid", "offline")),
+      onSuccess = {},
+      onError = {},
+      fallbackHandler = testFallbackHandler,
+      loginParameters = LoginParameters(scopes = listOf("profile", "openid", "offline")),
     )
 
     assertEquals(requestParams["scope"], "profile openid offline")
@@ -471,22 +510,22 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
   fun login_shouldRespectLoginHintParam() = runTest {
     lateinit var requestParams: Parameters
     val sdk =
-        sdkBuilder
-            .apply { scheduler = testScheduler }
-            .http(
-                captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
-                  requestParams = params
-                }
-            )
-            .http(MockRequestHandleScope::respondInit200)
-            .build()
+      sdkBuilder
+        .apply { scheduler = testScheduler }
+        .http(
+          captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
+            requestParams = params
+          }
+        )
+        .http(MockRequestHandleScope::respondInit200)
+        .build()
 
     val testFallbackHandler: FallbackHandler = { uri -> run { println(uri) } }
     sdk.login(
-        onSuccess = {},
-        onError = {},
-        fallbackHandler = testFallbackHandler,
-        loginParameters = LoginParameters(loginHint = "some_login_hint"),
+      onSuccess = {},
+      onError = {},
+      fallbackHandler = testFallbackHandler,
+      loginParameters = LoginParameters(loginHint = "some_login_hint"),
     )
 
     assertEquals(requestParams["login_hint"], "some_login_hint")
@@ -496,22 +535,22 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
   fun login_shouldRespectAcrValueParam() = runTest {
     lateinit var requestParams: Parameters
     val sdk =
-        sdkBuilder
-            .apply { scheduler = testScheduler }
-            .http(
-                captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
-                  requestParams = params
-                }
-            )
-            .http(MockRequestHandleScope::respondInit200)
-            .build()
+      sdkBuilder
+        .apply { scheduler = testScheduler }
+        .http(
+          captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
+            requestParams = params
+          }
+        )
+        .http(MockRequestHandleScope::respondInit200)
+        .build()
 
     val testFallbackHandler: FallbackHandler = { uri -> run { println(uri) } }
     sdk.login(
-        onSuccess = {},
-        onError = {},
-        fallbackHandler = testFallbackHandler,
-        loginParameters = LoginParameters(acrValue = "some_acr_value"),
+      onSuccess = {},
+      onError = {},
+      fallbackHandler = testFallbackHandler,
+      loginParameters = LoginParameters(acrValue = "some_acr_value"),
     )
 
     assertEquals(requestParams["acr_values"], "some_acr_value")
@@ -521,22 +560,22 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
   fun login_shouldRespectPromptParam() = runTest {
     lateinit var requestParams: Parameters
     val sdk =
-        sdkBuilder
-            .apply { scheduler = testScheduler }
-            .http(
-                captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
-                  requestParams = params
-                }
-            )
-            .http(MockRequestHandleScope::respondInit200)
-            .build()
+      sdkBuilder
+        .apply { scheduler = testScheduler }
+        .http(
+          captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
+            requestParams = params
+          }
+        )
+        .http(MockRequestHandleScope::respondInit200)
+        .build()
 
     val testFallbackHandler: FallbackHandler = { uri -> run { println(uri) } }
     sdk.login(
-        onSuccess = {},
-        onError = {},
-        fallbackHandler = testFallbackHandler,
-        loginParameters = LoginParameters(prompt = "some_prompt"),
+      onSuccess = {},
+      onError = {},
+      fallbackHandler = testFallbackHandler,
+      loginParameters = LoginParameters(prompt = "some_prompt"),
     )
 
     assertEquals(requestParams["prompt"], "some_prompt")
@@ -545,20 +584,20 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
   @Test
   fun login_shouldStartFlow() = runTest {
     val sdk =
-        sdkBuilder
-            .apply { scheduler = testScheduler }
-            .http(MockRequestHandleScope::respondFlowRedirect)
-            .http(MockRequestHandleScope::respondInit200)
-            .build()
+      sdkBuilder
+        .apply { scheduler = testScheduler }
+        .http(MockRequestHandleScope::respondFlowRedirect)
+        .http(MockRequestHandleScope::respondInit200)
+        .build()
 
     var onSuccessCalled = false
     var onErrorCalled = false
     val testFallbackHandler: FallbackHandler = { uri -> run { println(uri) } }
     sdk.login(
-        onSuccess = { onSuccessCalled = true },
-        onError = { onErrorCalled = true },
-        fallbackHandler = testFallbackHandler,
-        loginParameters = null,
+      onSuccess = { onSuccessCalled = true },
+      onError = { onErrorCalled = true },
+      fallbackHandler = testFallbackHandler,
+      loginParameters = null,
     )
 
     assertFalse(onErrorCalled)
@@ -571,25 +610,25 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
     // session id is null, error and error_description params are set
     // expect to clear session, run cleanup and invoke onError
     val sdk =
-        sdkBuilder
-            .apply { scheduler = testScheduler }
-            .http(MockRequestHandleScope::respondFlowOAuthError)
-            .build()
+      sdkBuilder
+        .apply { scheduler = testScheduler }
+        .http(MockRequestHandleScope::respondFlowOAuthError)
+        .build()
 
     var onErrorCalled = false
     val testFallbackHandler: FallbackHandler = { uri -> run { println(uri) } }
     sdk.login(
-        onSuccess = {},
-        onError = { ex ->
-          run {
-            assertTrue("Is OidcError", ex is OidcError)
-            assertEquals((ex as OidcError).error, "test-error")
-            assertEquals(ex.errorDescription, "SomeTestErrorDescription")
-            onErrorCalled = true
-          }
-        },
-        fallbackHandler = testFallbackHandler,
-        loginParameters = null,
+      onSuccess = {},
+      onError = { ex ->
+        run {
+          assertTrue("Is OidcError", ex is OidcError)
+          assertEquals((ex as OidcError).error, "test-error")
+          assertEquals(ex.errorDescription, "SomeTestErrorDescription")
+          onErrorCalled = true
+        }
+      },
+      fallbackHandler = testFallbackHandler,
+      loginParameters = null,
     )
     assertTrue("Error handler called", onErrorCalled)
     assertNull(testStorage.get("profile"))
@@ -605,24 +644,24 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
     // invoke onError
     lateinit var sdk: NativeSDK
     sdk =
-        sdkBuilder
-            .apply { scheduler = testScheduler }
-            .http { request -> respondFlowRedirect(request) }
-            .http { request ->
-              respondPostLoginRedirect(
-                  withCode = sdk.loginController!!.oidcParams.codeVerifier,
-                  request = request,
-              )
-            }
-            .build()
+      sdkBuilder
+        .apply { scheduler = testScheduler }
+        .http { request -> respondFlowRedirect(request) }
+        .http { request ->
+          respondPostLoginRedirect(
+            withCode = sdk.loginController!!.oidcParams.codeVerifier,
+            request = request,
+          )
+        }
+        .build()
 
     var onErrorCalled = false
     val testFallbackHandler: FallbackHandler = {}
     sdk.login(
-        onSuccess = {},
-        onError = { onErrorCalled = true },
-        fallbackHandler = testFallbackHandler,
-        loginParameters = null,
+      onSuccess = {},
+      onError = { onErrorCalled = true },
+      fallbackHandler = testFallbackHandler,
+      loginParameters = null,
     )
     sdk.continueFlow("https://localhost/provider/oauth2/v1/finish?state=1234")
     assertTrue("Error handler called", onErrorCalled)
@@ -637,27 +676,27 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
     // invoke onError
     lateinit var sdk: NativeSDK
     sdk =
-        sdkBuilder
-            .apply {
-              scheduler = testScheduler
-              //              this.httpService = httpService
-            }
-            .http(MockRequestHandleScope::respondFlowRedirect)
-            .http { request ->
-              respondPostLoginRedirect(
-                  withState = sdk.loginController!!.oidcParams.state,
-                  request = request,
-              )
-            }
-            .build()
+      sdkBuilder
+        .apply {
+          scheduler = testScheduler
+          //              this.httpService = httpService
+        }
+        .http(MockRequestHandleScope::respondFlowRedirect)
+        .http { request ->
+          respondPostLoginRedirect(
+            withState = sdk.loginController!!.oidcParams.state,
+            request = request,
+          )
+        }
+        .build()
 
     var onErrorCalled = false
     val testFallbackHandler: FallbackHandler = {}
     sdk.login(
-        onSuccess = {},
-        onError = { onErrorCalled = true },
-        fallbackHandler = testFallbackHandler,
-        loginParameters = null,
+      onSuccess = {},
+      onError = { onErrorCalled = true },
+      fallbackHandler = testFallbackHandler,
+      loginParameters = null,
     )
     sdk.continueFlow("https://localhost/provider/oauth2/v1/finish?state=1234")
     assertTrue("Error handler called", onErrorCalled)
@@ -672,36 +711,36 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
     // and onSuccess handler called
     lateinit var sdk: NativeSDK
     sdk =
-        sdkBuilder
-            .apply { scheduler = testScheduler }
-            .http(MockRequestHandleScope::respondFlowRedirect)
-            .http(MockRequestHandleScope::respondInit200)
-            .http { request ->
-              respondPostLoginRedirect(
-                  withState = sdk.loginController!!.oidcParams.state,
-                  withCode = sdk.loginController!!.oidcParams.codeVerifier,
-                  request = request,
-              )
-            }
-            .http { request ->
-              respondTokenExchange200(
-                  {
-                    nonce = sdk.loginController!!.oidcParams.nonce
-                    iss = "https://localhost/"
-                  },
-                  request,
-              )
-            }
-            .build()
+      sdkBuilder
+        .apply { scheduler = testScheduler }
+        .http(MockRequestHandleScope::respondFlowRedirect)
+        .http(MockRequestHandleScope::respondInit200)
+        .http { request ->
+          respondPostLoginRedirect(
+            withState = sdk.loginController!!.oidcParams.state,
+            withCode = sdk.loginController!!.oidcParams.codeVerifier,
+            request = request,
+          )
+        }
+        .http { request ->
+          respondTokenExchange200(
+            {
+              nonce = sdk.loginController!!.oidcParams.nonce
+              iss = "https://localhost/"
+            },
+            request,
+          )
+        }
+        .build()
 
     var onErrorCalled = false
     var onSuccessCalled = false
     val testFallbackHandler: FallbackHandler = {}
     sdk.login(
-        onSuccess = { onSuccessCalled = true },
-        onError = { onErrorCalled = true },
-        fallbackHandler = testFallbackHandler,
-        loginParameters = null,
+      onSuccess = { onSuccessCalled = true },
+      onError = { onErrorCalled = true },
+      fallbackHandler = testFallbackHandler,
+      loginParameters = null,
     )
     sdk.continueFlow("https://localhost/provider/oauth2/v1/finish?state=1234")
     assertTrue(onSuccessCalled)
@@ -715,33 +754,33 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
     // expect onError to be called
     lateinit var sdk: NativeSDK
     sdk =
-        sdkBuilder
-            .apply { scheduler = testScheduler }
-            .http(MockRequestHandleScope::respondInit200)
-            .http(MockRequestHandleScope::respondFlowRedirect)
-            .http { request ->
-              respondPostLoginRedirect(
-                  withState = sdk.loginController!!.oidcParams.state,
-                  withCode = sdk.loginController!!.oidcParams.codeVerifier,
-                  request = request,
-              )
-            }
-            .http { request ->
-              respondTokenExchange200(
-                  { nonce = "definitely-wont-match" },
-                  request,
-              )
-            }
-            .build()
+      sdkBuilder
+        .apply { scheduler = testScheduler }
+        .http(MockRequestHandleScope::respondInit200)
+        .http(MockRequestHandleScope::respondFlowRedirect)
+        .http { request ->
+          respondPostLoginRedirect(
+            withState = sdk.loginController!!.oidcParams.state,
+            withCode = sdk.loginController!!.oidcParams.codeVerifier,
+            request = request,
+          )
+        }
+        .http { request ->
+          respondTokenExchange200(
+            { nonce = "definitely-wont-match" },
+            request,
+          )
+        }
+        .build()
 
     var onErrorCalled = false
     var onSuccessCalled = false
     val testFallbackHandler: FallbackHandler = {}
     sdk.login(
-        onSuccess = { onSuccessCalled = true },
-        onError = { onErrorCalled = true },
-        fallbackHandler = testFallbackHandler,
-        loginParameters = null,
+      onSuccess = { onSuccessCalled = true },
+      onError = { onErrorCalled = true },
+      fallbackHandler = testFallbackHandler,
+      loginParameters = null,
     )
     sdk.continueFlow("https://localhost/provider/oauth2/v1/finish?state=1234")
     assertFalse(onSuccessCalled)
@@ -756,36 +795,36 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
     // expect onError to be called
     lateinit var sdk: NativeSDK
     sdk =
-        sdkBuilder
-            .apply { scheduler = testScheduler }
-            .http(MockRequestHandleScope::respondInit200)
-            .http(MockRequestHandleScope::respondFlowRedirect)
-            .http { request ->
-              respondPostLoginRedirect(
-                  withState = sdk.loginController!!.oidcParams.state,
-                  withCode = sdk.loginController!!.oidcParams.codeVerifier,
-                  request = request,
-              )
-            }
-            .http { request ->
-              respondTokenExchange200(
-                  {
-                    nonce = sdk.loginController!!.oidcParams.nonce
-                    iss = "random-domain"
-                  },
-                  request,
-              )
-            }
-            .build()
+      sdkBuilder
+        .apply { scheduler = testScheduler }
+        .http(MockRequestHandleScope::respondInit200)
+        .http(MockRequestHandleScope::respondFlowRedirect)
+        .http { request ->
+          respondPostLoginRedirect(
+            withState = sdk.loginController!!.oidcParams.state,
+            withCode = sdk.loginController!!.oidcParams.codeVerifier,
+            request = request,
+          )
+        }
+        .http { request ->
+          respondTokenExchange200(
+            {
+              nonce = sdk.loginController!!.oidcParams.nonce
+              iss = "random-domain"
+            },
+            request,
+          )
+        }
+        .build()
 
     var onErrorCalled = false
     var onSuccessCalled = false
     val testFallbackHandler: FallbackHandler = {}
     sdk.login(
-        onSuccess = { onSuccessCalled = true },
-        onError = { onErrorCalled = true },
-        fallbackHandler = testFallbackHandler,
-        loginParameters = null,
+      onSuccess = { onSuccessCalled = true },
+      onError = { onErrorCalled = true },
+      fallbackHandler = testFallbackHandler,
+      loginParameters = null,
     )
     sdk.continueFlow("https://localhost/provider/oauth2/v1/finish?state=1234")
     assertFalse(onSuccessCalled)
@@ -800,37 +839,37 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
     // expect onError to be called
     lateinit var sdk: NativeSDK
     sdk =
-        sdkBuilder
-            .apply { scheduler = testScheduler }
-            .http(MockRequestHandleScope::respondInit200)
-            .http(MockRequestHandleScope::respondFlowRedirect)
-            .http { request ->
-              respondPostLoginRedirect(
-                  withState = sdk.loginController!!.oidcParams.state,
-                  withCode = sdk.loginController!!.oidcParams.codeVerifier,
-                  request = request,
-              )
-            }
-            .http { request ->
-              respondTokenExchange200(
-                  {
-                    nonce = sdk.loginController!!.oidcParams.nonce
-                    iss = "https://localhost/"
-                    aud = "[]"
-                  },
-                  request,
-              )
-            }
-            .build()
+      sdkBuilder
+        .apply { scheduler = testScheduler }
+        .http(MockRequestHandleScope::respondInit200)
+        .http(MockRequestHandleScope::respondFlowRedirect)
+        .http { request ->
+          respondPostLoginRedirect(
+            withState = sdk.loginController!!.oidcParams.state,
+            withCode = sdk.loginController!!.oidcParams.codeVerifier,
+            request = request,
+          )
+        }
+        .http { request ->
+          respondTokenExchange200(
+            {
+              nonce = sdk.loginController!!.oidcParams.nonce
+              iss = "https://localhost/"
+              aud = "[]"
+            },
+            request,
+          )
+        }
+        .build()
 
     var onErrorCalled = false
     var onSuccessCalled = false
     val testFallbackHandler: FallbackHandler = {}
     sdk.login(
-        onSuccess = { onSuccessCalled = true },
-        onError = { onErrorCalled = true },
-        fallbackHandler = testFallbackHandler,
-        loginParameters = null,
+      onSuccess = { onSuccessCalled = true },
+      onError = { onErrorCalled = true },
+      fallbackHandler = testFallbackHandler,
+      loginParameters = null,
     )
     sdk.continueFlow("https://localhost/provider/oauth2/v1/finish?state=1234")
     assertFalse(onSuccessCalled)
@@ -845,37 +884,37 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
     // expect onError to be called with UnknownError
     lateinit var sdk: NativeSDK
     sdk =
-        sdkBuilder
-            .apply { scheduler = testScheduler }
-            .http(MockRequestHandleScope::respondFlowRedirect)
-            .http { request ->
-              respondPostLoginRedirect(
-                  withState = sdk.loginController!!.oidcParams.state,
-                  withCode = sdk.loginController!!.oidcParams.codeVerifier,
-                  request = request,
+      sdkBuilder
+        .apply { scheduler = testScheduler }
+        .http(MockRequestHandleScope::respondFlowRedirect)
+        .http { request ->
+          respondPostLoginRedirect(
+            withState = sdk.loginController!!.oidcParams.state,
+            withCode = sdk.loginController!!.oidcParams.codeVerifier,
+            request = request,
+          )
+        }
+        .http { request ->
+          respondTokenExchangeException(
+            tokenResponseBuilder = {
+              TokenResponseBuilder(
+                nonce = sdk.loginController!!.oidcParams.nonce,
               )
-            }
-            .http { request ->
-              respondTokenExchangeException(
-                  tokenResponseBuilder = {
-                    TokenResponseBuilder(
-                            nonce = sdk.loginController!!.oidcParams.nonce,
-                        )
-                        .buildAsString()
-                  },
-                  request,
-              )
-            }
-            .build()
+                .buildAsString()
+            },
+            request,
+          )
+        }
+        .build()
 
     var onErrorCalled = false
     var onSuccessCalled = false
     val testFallbackHandler: FallbackHandler = {}
     sdk.login(
-        onSuccess = { onSuccessCalled = true },
-        onError = { onErrorCalled = true },
-        fallbackHandler = testFallbackHandler,
-        loginParameters = null,
+      onSuccess = { onSuccessCalled = true },
+      onError = { onErrorCalled = true },
+      fallbackHandler = testFallbackHandler,
+      loginParameters = null,
     )
     sdk.continueFlow("https://localhost/provider/oauth2/v1/finish?state=1234")
     assertFalse(onSuccessCalled)

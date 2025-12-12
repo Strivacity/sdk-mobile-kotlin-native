@@ -303,7 +303,7 @@ internal constructor(
           clientId = clientId
         )
       } catch (e: Error) {
-        Log.d("NativeSDK", "Failed to call revoke endpoint", e)
+        logging.debug("Failed to call revoke endpoint", e)
       } finally {
         session.clear()
       }
