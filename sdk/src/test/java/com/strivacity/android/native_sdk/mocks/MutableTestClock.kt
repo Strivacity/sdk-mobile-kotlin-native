@@ -7,8 +7,8 @@ import kotlin.time.Duration
 import kotlin.time.toJavaDuration
 
 class MutableTestClock(
-  private var currentTime: Instant = Instant.now(),
-  private val _zone: ZoneId = systemUTC().zone,
+    private var currentTime: Instant = Instant.now(),
+    private val _zone: ZoneId = systemUTC().zone,
 ) : Clock() {
 
   override fun getZone(): ZoneId = _zone

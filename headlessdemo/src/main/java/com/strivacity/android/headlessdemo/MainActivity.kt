@@ -4,6 +4,7 @@ import android.app.ComponentCaller
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -14,10 +15,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.strivacity.android.headlessdemo.ui.theme.SdkmobilekotlinnativeTheme
@@ -143,7 +148,12 @@ fun Login(nativeSDK: NativeSDK) {
     } else if (loginInProgress) {
       LoginScreen(nativeSDK)
     } else {
+
+      var audiences by remember { mutableStateOf("") }
+
       Column {
+        CustomAudienceInput(audiences = audiences, onAudiencesChanges = { audiences = it })
+
         Button(
             colors = ButtonDefaults.buttonColors(containerColor = StrivacityPrimary),
             onClick = {
@@ -154,7 +164,9 @@ fun Login(nativeSDK: NativeSDK) {
                       WeakReference(context),
                       {},
                       { error = it },
-                      LoginParameters(scopes = listOf("openid", "profile", "email", "offline")))
+                      LoginParameters(
+                          scopes = listOf("openid", "profile", "email", "offline"),
+                          audiences = audiences.split(' ')))
                 } catch (e: Error) {
                   error = e
                 }
@@ -190,4 +202,32 @@ fun Login(nativeSDK: NativeSDK) {
       loading = false
     }
   }
+}
+
+@Composable
+fun CustomAudienceInput(audiences: String, onAudiencesChanges: (String) -> Unit) {
+  val uriHandler = LocalUriHandler.current
+  val context = LocalContext.current
+
+  OutlinedTextField(
+      value = audiences,
+      onValueChange = onAudiencesChanges,
+      label = { Text("Custom audiences") },
+      supportingText = { Text("Optional values separated by space") },
+      trailingIcon = {
+        IconButton(
+            onClick = {
+              try {
+                uriHandler.openUri(
+                    "https://docs.strivacity.com/docs/oauth2-oidc-properties-setup#allowed-custom-audiences")
+              } catch (ex: IllegalArgumentException) {
+                Log.e("LOGIN", "Could not open documentation U", ex)
+                Toast.makeText(context, "Could not open documentation", Toast.LENGTH_SHORT).show()
+              }
+            }) {
+              Icon(
+                  imageVector = Icons.Outlined.Info,
+                  contentDescription = "Documentation about Strivacity Custom Audiences")
+            }
+      })
 }
