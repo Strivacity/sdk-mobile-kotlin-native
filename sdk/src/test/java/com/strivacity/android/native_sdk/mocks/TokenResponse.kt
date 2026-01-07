@@ -54,4 +54,3 @@ internal class TokenResponseBuilder(
     return "$header.$payload.$signature"
   }
 }
-

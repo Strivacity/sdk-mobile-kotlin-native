@@ -39,8 +39,7 @@ class LoginHandlerServiceTest {
                   HttpStatusCode.OK,
                   headers { set(HttpHeaders.ContentType, "application/json") },
               )
-            }
-        )
+            })
     val handlerService = LoginHandlerService(service, "https://localhost/", "test-session-id")
     val screen = handlerService.submitForm("test-form-id", body = mapOf())
   }
@@ -54,8 +53,7 @@ class LoginHandlerServiceTest {
                   "",
                   HttpStatusCode.Forbidden,
               )
-            }
-        )
+            })
     val handlerService = LoginHandlerService(service, "https://localhost/", "test-session-id")
     assertThrows(SessionExpiredError::class.java) {
       runBlocking { handlerService.submitForm("test-form-id", body = mapOf()) }
@@ -71,8 +69,7 @@ class LoginHandlerServiceTest {
                   "",
                   HttpStatusCode.InternalServerError,
               )
-            }
-        )
+            })
     val handlerService = LoginHandlerService(service, "https://localhost/", "test-session-id")
     assertThrows(HttpError::class.java) {
       runBlocking { handlerService.submitForm("test-form-id", body = mapOf()) }

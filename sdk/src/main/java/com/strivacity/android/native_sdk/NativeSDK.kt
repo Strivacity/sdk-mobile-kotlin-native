@@ -25,16 +25,16 @@ import kotlinx.coroutines.withContext
 
 class NativeSDK
 internal constructor(
-  private val issuer: String,
-  private val clientId: String,
-  private val redirectURI: String,
-  private val postLogoutURI: String,
-  val session: Session,
-  private val httpService: HttpService = HttpService(),
-  private val mode: SdkMode = SdkMode.Android,
-  private val dispatchers: SDKDispatchers = DefaultSDKDispatchers,
-  private val clock: Clock = Clock.systemUTC(),
-  oidcHandlerServiceOverride: OIDCHandlerService? = null,
+    private val issuer: String,
+    private val clientId: String,
+    private val redirectURI: String,
+    private val postLogoutURI: String,
+    val session: Session,
+    private val httpService: HttpService = HttpService(),
+    private val mode: SdkMode = SdkMode.Android,
+    private val dispatchers: SDKDispatchers = DefaultSDKDispatchers,
+    private val clock: Clock = Clock.systemUTC(),
+    oidcHandlerServiceOverride: OIDCHandlerService? = null,
 ) {
 
   private val oidcHandlerService: OIDCHandlerService =
@@ -91,16 +91,16 @@ internal constructor(
                   val scopes = loginParameters?.scopes ?: listOf("openid", "profile")
                   parameters.append("scope", scopes.joinToString(separator = " "))
 
-                  if (loginParameters?.loginHint != null) {
-                    parameters.append("login_hint", loginParameters.loginHint)
-                  }
-
-                  if (loginParameters?.acrValue != null) {
-                    parameters.append("acr_values", loginParameters.acrValue)
-                  }
-
-                  if (loginParameters?.prompt != null) {
-                    parameters.append("prompt", loginParameters.prompt)
+                  loginParameters?.let {
+                    it.loginHint?.let { hint -> parameters.append("login_hint", hint) }
+                    it.acrValue?.let { acr -> parameters.append("acr_values", acr) }
+                    it.prompt?.let { prompt -> parameters.append("prompt", prompt) }
+                    it.audiences
+                        ?.filter { aud -> aud.isNotBlank() }
+                        ?.takeIf { audiences -> audiences.isNotEmpty() }
+                        ?.let { audiences ->
+                          parameters.append("audience", audiences.joinToString(" "))
+                        }
                   }
                 }
                 .build()
@@ -299,10 +299,8 @@ internal constructor(
   internal suspend fun refreshTokensIfNeeded(): Boolean =
       tokenRefreshMutex.withLock {
         val accessTokenExpiresAt = session.profile.value?.accessTokenExpiresAt
-        if (
-            accessTokenExpiresAt == null ||
-                accessTokenExpiresAt.isAfter(Instant.now(clock).plus(1, ChronoUnit.MINUTES))
-        ) {
+        if (accessTokenExpiresAt == null ||
+            accessTokenExpiresAt.isAfter(Instant.now(clock).plus(1, ChronoUnit.MINUTES))) {
           return false
         }
 
@@ -341,6 +339,7 @@ data class LoginParameters(
     val loginHint: String? = null,
     val acrValue: String? = null,
     val scopes: List<String>? = null,
+    val audiences: List<String>? = null,
 )
 
 enum class SdkMode(val value: String) {

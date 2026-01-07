@@ -406,8 +406,7 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
             .http(
                 captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
                   requestParams = params
-                }
-            )
+                })
             .http(MockRequestHandleScope::respondInit200)
             .build()
     val testFallbackHandler: FallbackHandler = { uri -> run { println(uri) } }
@@ -427,6 +426,7 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
     assertNotNull(requestParams["state"])
     assertNotNull(requestParams["nonce"])
     assertNotNull(requestParams["code_challenge"])
+    assertNull(requestParams["audience"])
     assertEquals("code_challenge_method", requestParams["code_challenge_method"], "S256")
     assertEquals("sdk", requestParams["sdk"], SdkMode.Android.value)
     assertEquals("scope", requestParams["scope"], "openid profile")
@@ -442,8 +442,7 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
             .http(
                 captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
                   requestParams = params
-                }
-            )
+                })
             .http(MockRequestHandleScope::respondInit200)
             .build()
 
@@ -467,8 +466,7 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
             .http(
                 captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
                   requestParams = params
-                }
-            )
+                })
             .http(MockRequestHandleScope::respondInit200)
             .build()
 
@@ -492,8 +490,7 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
             .http(
                 captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
                   requestParams = params
-                }
-            )
+                })
             .http(MockRequestHandleScope::respondInit200)
             .build()
 
@@ -517,8 +514,7 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
             .http(
                 captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
                   requestParams = params
-                }
-            )
+                })
             .http(MockRequestHandleScope::respondInit200)
             .build()
 
@@ -531,6 +527,102 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
     )
 
     assertEquals(requestParams["prompt"], "some_prompt")
+  }
+
+  @Test
+  fun login_shouldRespectAudiencesParam() = runTest {
+    lateinit var requestParams: Parameters
+    val sdk =
+        sdkBuilder
+            .apply { scheduler = testScheduler }
+            .http(
+                captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
+                  requestParams = params
+                })
+            .http(MockRequestHandleScope::respondInit200)
+            .build()
+
+    val testFallbackHandler: FallbackHandler = { uri -> run { println(uri) } }
+    sdk.login(
+        onSuccess = {},
+        onError = {},
+        fallbackHandler = testFallbackHandler,
+        loginParameters = LoginParameters(audiences = listOf("custom1", "custom2")),
+    )
+
+    assertEquals("custom1 custom2", requestParams["audience"])
+  }
+
+  @Test
+  fun login_shouldIgnoreAudiencesParams_whenTheyAreBlank() = runTest {
+    lateinit var requestParams: Parameters
+    val sdk =
+        sdkBuilder
+            .apply { scheduler = testScheduler }
+            .http(
+                captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
+                  requestParams = params
+                })
+            .http(MockRequestHandleScope::respondInit200)
+            .build()
+
+    val testFallbackHandler: FallbackHandler = { uri -> run { println(uri) } }
+    sdk.login(
+        onSuccess = {},
+        onError = {},
+        fallbackHandler = testFallbackHandler,
+        loginParameters = LoginParameters(audiences = listOf("", " ")),
+    )
+
+    assertNull(requestParams["audience"])
+  }
+
+  @Test
+  fun login_shouldIgnoreNullAudiencesParams() = runTest {
+    lateinit var requestParams: Parameters
+    val sdk =
+        sdkBuilder
+            .apply { scheduler = testScheduler }
+            .http(
+                captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
+                  requestParams = params
+                })
+            .http(MockRequestHandleScope::respondInit200)
+            .build()
+
+    val testFallbackHandler: FallbackHandler = { uri -> run { println(uri) } }
+    sdk.login(
+        onSuccess = {},
+        onError = {},
+        fallbackHandler = testFallbackHandler,
+        loginParameters = LoginParameters(audiences = null),
+    )
+
+    assertNull(requestParams["audience"])
+  }
+
+  @Test
+  fun login_shouldIgnoreEmptyAudiencesParam() = runTest {
+    lateinit var requestParams: Parameters
+    val sdk =
+        sdkBuilder
+            .apply { scheduler = testScheduler }
+            .http(
+                captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
+                  requestParams = params
+                })
+            .http(MockRequestHandleScope::respondInit200)
+            .build()
+
+    val testFallbackHandler: FallbackHandler = { uri -> run { println(uri) } }
+    sdk.login(
+        onSuccess = {},
+        onError = {},
+        fallbackHandler = testFallbackHandler,
+        loginParameters = LoginParameters(audiences = listOf()),
+    )
+
+    assertNull(requestParams["audience"])
   }
 
   @Test
