@@ -278,7 +278,7 @@ internal constructor(
           oidcHandlerService.handleCall(url)
           logging.info("NativeSDK: User logged out")
         } catch (e: Error) {
-          logging.warn("NativeSDK: Failed to call logout endpoint ${e.toString()}", e)
+          logging.warn("NativeSDK: Failed to call logout endpoint $e", e)
         }
       }
 
