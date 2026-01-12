@@ -1,7 +1,6 @@
 package com.strivacity.android.native_sdk
 
 import android.content.Context
-import android.util.Log
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.core.net.toUri
 import com.strivacity.android.native_sdk.render.FallbackHandler
@@ -25,20 +24,19 @@ import kotlinx.coroutines.withContext
 
 class NativeSDK
 internal constructor(
-  private val issuer: String,
-  private val clientId: String,
-  private val redirectURI: String,
-  private val postLogoutURI: String,
-  val session: Session,
-  private val httpService: HttpService = HttpService(),
-  private val mode: SdkMode = SdkMode.Android,
-  private val dispatchers: SDKDispatchers = DefaultSDKDispatchers,
-  private val clock: Clock = Clock.systemUTC(),
-  oidcHandlerServiceOverride: OIDCHandlerService? = null,
+    private val issuer: String,
+    private val clientId: String,
+    private val redirectURI: String,
+    private val postLogoutURI: String,
+    val session: Session,
+    private val mode: SdkMode = SdkMode.Android,
+    private val dispatchers: SDKDispatchers = DefaultSDKDispatchers,
+    private val clock: Clock = Clock.systemUTC(),
+    private val logging: Logging = DefaultLogging(),
+    private val httpService: HttpService = HttpService(logging = logging),
+    private val oidcHandlerService: OIDCHandlerService =
+        OIDCHandlerService(httpService = httpService, logging = logging),
 ) {
-
-  private val oidcHandlerService: OIDCHandlerService =
-      oidcHandlerServiceOverride ?: OIDCHandlerService(httpService)
 
   constructor(
       issuer: String,
@@ -47,13 +45,15 @@ internal constructor(
       postLogoutURI: String,
       storage: Storage,
       mode: SdkMode = SdkMode.Android,
+      logging: Logging = DefaultLogging(),
   ) : this(
       issuer = issuer,
       clientId = clientId,
       redirectURI = redirectURI,
       postLogoutURI = postLogoutURI,
-      session = Session(storage),
+      session = Session(storage, logging),
       mode = mode,
+      logging = logging,
   )
 
   var loginController: LoginController? = null
@@ -62,8 +62,19 @@ internal constructor(
 
   suspend fun initializeSession() =
       withContext(dispatchers.IO) {
-        session.load()
-        refreshTokensIfNeeded()
+        logging.info("NativeSDK: Initializing session")
+        try {
+          session.load()
+          val refreshed = refreshTokensIfNeeded()
+          if (refreshed) {
+            logging.debug("NativeSDK: Session initialized and tokens refreshed")
+          } else {
+            logging.debug("NativeSDK: Session initialized")
+          }
+        } catch (e: Exception) {
+          logging.error("NativeSDK: Failed to initialize session", e)
+          throw e
+        }
       }
 
   suspend fun login(
@@ -73,6 +84,7 @@ internal constructor(
       loginParameters: LoginParameters? = null,
   ) =
       withContext(dispatchers.IO) {
+        logging.info("NativeSDK: Starting login flow")
         val oidcParams = OidcParams(onSuccess, onError)
 
         val url =
@@ -90,17 +102,21 @@ internal constructor(
 
                   val scopes = loginParameters?.scopes ?: listOf("openid", "profile")
                   parameters.append("scope", scopes.joinToString(separator = " "))
+                  logging.debug("NativeSDK: Login scopes: ${parameters["scope"]}")
 
                   if (loginParameters?.loginHint != null) {
                     parameters.append("login_hint", loginParameters.loginHint)
+                    logging.debug("NativeSDK: Login hint provided")
                   }
 
                   if (loginParameters?.acrValue != null) {
                     parameters.append("acr_values", loginParameters.acrValue)
+                    logging.debug("NativeSDK: ACR value: ${loginParameters.acrValue}")
                   }
 
                   if (loginParameters?.prompt != null) {
                     parameters.append("prompt", loginParameters.prompt)
+                    logging.debug("NativeSDK: Prompt: ${loginParameters.prompt}")
                   }
                 }
                 .build()
@@ -116,13 +132,21 @@ internal constructor(
 
           val loginHandlerService = LoginHandlerService(httpService, issuer, sessionId)
           val loginController =
-              LoginController(this@NativeSDK, loginHandlerService, oidcParams, fallbackHandler)
+              LoginController(
+                  this@NativeSDK,
+                  loginHandlerService,
+                  oidcParams,
+                  fallbackHandler,
+                  logging,
+              )
 
           loginController.initialize()
           this@NativeSDK.loginController = loginController
 
           session.setLoginInProgress(true)
+          logging.info("NativeSDK: Login flow started")
         } catch (e: Exception) {
+          logging.error("NativeSDK: Login flow failed ${e.message}", e)
           onError(UnknownError(e))
         }
       }
@@ -152,14 +176,31 @@ internal constructor(
 
   suspend fun isAuthenticated(): Boolean =
       withContext(dispatchers.IO) {
-        refreshTokensIfNeeded()
-        session.profile.value != null
+        val refreshed = refreshTokensIfNeeded()
+        val authenticated = session.profile.value != null
+        if (refreshed) {
+          logging.debug(
+              "NativeSDK: Authentication check - tokens refreshed, authenticated: $authenticated"
+          )
+        } else {
+          logging.debug("NativeSDK: Authentication check - authenticated: $authenticated")
+        }
+        return@withContext authenticated
       }
 
   suspend fun getAccessToken(): String? =
       withContext(dispatchers.IO) {
-        refreshTokensIfNeeded()
-        val profile = session.profile.value ?: return@withContext null
+        val refreshed = refreshTokensIfNeeded()
+        val profile = session.profile.value
+        if (profile == null) {
+          logging.debug("NativeSDK: Access token requested but no profile available")
+          return@withContext null
+        }
+        if (refreshed) {
+          logging.debug("NativeSDK: Access token retrieved after token refresh")
+        } else {
+          logging.debug("NativeSDK: Access token retrieved")
+        }
         return@withContext profile.tokenResponse.accessToken
       }
 
@@ -169,38 +210,57 @@ internal constructor(
 
   suspend fun continueFlow(uri: String?) =
       withContext(dispatchers.IO) {
-        val oidcParams = loginController?.oidcParams ?: return@withContext
+        val oidcParams = loginController?.oidcParams
+        if (oidcParams == null) {
+          logging.warn("NativeSDK: continueFlow called but no login controller available")
+          return@withContext
+        }
 
         if (uri == null) {
+          logging.debug("NativeSDK: Flow canceled")
           cancelFlow(HostedFlowCanceledError())
           return@withContext
         }
 
         try {
-          val parameters = oidcHandlerService.handleCall(URLBuilder(uri).build())
+          val url = URLBuilder(uri).build()
+          logging.debug("NativeSDK: Continuing flow with ${url.encodedPath}")
+          val parameters = oidcHandlerService.handleCall(url)
           continueFlow(oidcParams, parameters)
         } catch (e: Exception) {
+          logging.debug("NativeSDK: Failed to continue flow", e)
           cleanup()
           oidcParams.onError(UnknownError(e))
         }
       }
 
   fun cancelFlow(error: Error? = null) {
-    val loginController = loginController ?: return
+    val loginController = loginController
+    if (loginController == null) {
+      logging.warn("NativeSDK: cancelFlow called but no login controller available")
+      return
+    }
 
     cleanup()
     if (error != null) {
+      logging.debug("NativeSDK: Canceling login flow with error", error)
       loginController.oidcParams.onError(error)
+    } else {
+      logging.warn("NativeSDK: Canceling login flow")
     }
   }
 
   suspend fun logout(): Unit =
       withContext(dispatchers.IO) {
+        logging.debug("NativeSDK: Starting logout")
         val idToken = session.profile.value?.tokenResponse?.idToken
 
         session.clear()
 
+        logging.debug("NativeSDK: waiting 1s before submitting logout request")
+
         if (idToken == null) {
+          logging.info("NativeSDK: User logged out (no id_token_hint available)")
           return@withContext
         }
 
@@ -214,9 +274,11 @@ internal constructor(
                 .build()
 
         try {
+          logging.debug("NativeSDK: submitting logout request")
           oidcHandlerService.handleCall(url)
+          logging.info("NativeSDK: User logged out")
         } catch (e: Error) {
-          Log.d("NativeSDK", "Failed to call logout endpoint", e)
+          logging.warn("NativeSDK: Failed to call logout endpoint $e", e)
         }
       }
 
@@ -226,6 +288,7 @@ internal constructor(
       try {
         loginController?.initialize()
       } catch (e: Exception) {
+        logging.debug("NativeSDK: Failed to re-initialize LoginController", e)
         cleanup()
         oidcParams.onError(UnknownError(e))
       }
@@ -236,6 +299,7 @@ internal constructor(
     val error = parameters["error"]
     val errorDescription = parameters["error_description"]
     if (error != null && errorDescription != null) {
+      logging.debug("NativeSDK: OIDC error received - error: $error $errorDescription")
       session.clear()
       cleanup()
       oidcParams.onError(OidcError(error, errorDescription))
@@ -244,13 +308,19 @@ internal constructor(
 
     val state = parameters["state"]
     if (state != oidcParams.state) {
+      logging.error("NativeSDK: State validation failed")
       cleanup()
       oidcParams.onError(InvalidCallbackError("State param did not matched expected value"))
       return
     }
 
-    val code = parameters["code"] ?: throw IllegalStateException("Code missing from response")
+    val code = parameters["code"]
+    if (code == null) {
+      logging.error("NativeSDK: Authorization code missing from callback")
+      throw IllegalStateException("Code missing from response")
+    }
 
+    logging.debug("NativeSDK: Authorization code received, exchanging for tokens")
     try {
       val tokenResponse =
           oidcHandlerService.tokenExchange(
@@ -258,9 +328,12 @@ internal constructor(
               TokenExchangeParams(code, oidcParams.codeVerifier, redirectURI, clientId),
           )
 
+      logging.debug("NativeSDK: Token exchange successful, validating claims")
       val claims = extractClaims(tokenResponse)
+
       val responseNonce = claims["nonce"] as? String
       if (responseNonce == null || oidcParams.nonce != responseNonce) {
+        logging.error("NativeSDK: Nonce validation failed")
         cleanup()
         oidcParams.onError(InvalidCallbackError("Nonce param did not matched expected value"))
         return
@@ -269,6 +342,7 @@ internal constructor(
       val responseIssuer = claims["iss"] as? String
       val normalizedIssuer = if (issuer.endsWith("/")) issuer else "$issuer/"
       if (responseIssuer == null || normalizedIssuer != responseIssuer) {
+        logging.error("NativeSDK: Issuer validation failed")
         cleanup()
         oidcParams.onError(InvalidCallbackError("Issuer param did not matched expected value"))
         return
@@ -276,16 +350,20 @@ internal constructor(
 
       val responseAudience = claims["aud"] as? List<*>
       if (responseAudience == null || !responseAudience.contains(clientId)) {
+        logging.error("NativeSDK: Audience validation failed")
         cleanup()
         oidcParams.onError(InvalidCallbackError("Audience param did not matched expected value"))
         return
       }
 
+      logging.debug("NativeSDK: All token validations passed, updating session")
       session.update(tokenResponse)
 
       cleanup()
+      logging.info("NativeSDK: User signed in successfully")
       oidcParams.onSuccess()
     } catch (e: Exception) {
+      logging.debug("NativeSDK: Token exchange or validation failed", e)
       cleanup()
       oidcParams.onError(UnknownError(e))
     }
@@ -306,8 +384,10 @@ internal constructor(
           return false
         }
 
+        logging.debug("NativeSDK: Access token expired or expiring soon, attempting refresh")
         val refreshToken = session.profile.value?.tokenResponse?.refreshToken
         if (refreshToken == null) {
+          logging.warn("NativeSDK: No refresh token available, clearing session")
           session.clear()
           return false
         }
@@ -320,12 +400,20 @@ internal constructor(
               )
 
           session.update(tokenResponse)
+          logging.debug("NativeSDK: Token refresh successful")
           return true
         } catch (e: HttpError) {
           if (e.statusCode in listOf(401, 403)) {
+            logging.warn(
+                "NativeSDK: Token refresh failed with status ${e.statusCode}, clearing session"
+            )
             session.clear()
             return false
           }
+          logging.error("NativeSDK: Token refresh failed with status ${e.statusCode}", e)
+          throw e
+        } catch (e: Exception) {
+          logging.error("NativeSDK: Token refresh failed", e)
           throw e
         }
       }
