@@ -50,6 +50,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.window.Popup
 import com.strivacity.android.native_sdk.render.LoginController
 import com.strivacity.android.native_sdk.render.models.CheckboxWidget
+import com.strivacity.android.native_sdk.render.models.CloseWidget
 import com.strivacity.android.native_sdk.render.models.DateWidget
 import com.strivacity.android.native_sdk.render.models.InputWidget
 import com.strivacity.android.native_sdk.render.models.MultiSelectWidget
@@ -79,6 +80,7 @@ fun Widget(
 ) {
   when (widget) {
     is CheckboxWidget -> CheckboxWidget(loginController, screen, widget, formId, widgetId)
+    is CloseWidget -> CloseWidget(loginController, screen, widget, formId, widgetId)
     is DateWidget -> DateWidget(loginController, screen, widget, formId, widgetId)
     is InputWidget -> InputWidget(loginController, screen, widget, formId, widgetId)
     is MultiSelectWidget -> MultiSelectWidget(loginController, screen, widget, formId, widgetId)
@@ -157,6 +159,26 @@ fun SubmitWidget(
   val processing by loginController.processing.collectAsState()
 
   val onClick: () -> Unit = { coroutineScope.launch { loginController.submit(formId) } }
+  when (widget.render?.type) {
+    "button" -> Button(onClick = onClick, enabled = !processing) { Text(widget.label) }
+    "link" -> TextButton(onClick = onClick, enabled = !processing) { Text(widget.label) }
+    else -> loginController.triggerFallback()
+  }
+}
+
+@Composable
+fun CloseWidget(
+    loginController: LoginController,
+    screen: Screen,
+    widget: CloseWidget,
+    formId: String,
+    widgetId: String
+) {
+  val coroutineScope = rememberCoroutineScope()
+
+  val processing by loginController.processing.collectAsState()
+
+  val onClick: () -> Unit = { coroutineScope.launch { loginController.close() } }
   when (widget.render?.type) {
     "button" -> Button(onClick = onClick, enabled = !processing) { Text(widget.label) }
     "link" -> TextButton(onClick = onClick, enabled = !processing) { Text(widget.label) }
