@@ -51,6 +51,10 @@ internal constructor(
         }
       }
 
+  fun close() {
+    nativeSDK.cancelFlow()
+  }
+
   suspend fun submit(formId: String) =
       withContext(Dispatchers.IO) {
         val body =
