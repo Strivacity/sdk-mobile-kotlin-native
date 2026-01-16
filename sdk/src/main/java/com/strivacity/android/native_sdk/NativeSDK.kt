@@ -282,6 +282,33 @@ internal constructor(
         }
       }
 
+  suspend fun revoke() =
+      withContext(dispatchers.IO) {
+        val refreshToken = session.profile.value?.tokenResponse?.refreshToken
+        val accessToken = session.profile.value?.tokenResponse?.accessToken
+
+        if (refreshToken == null && accessToken == null) {
+          // guard statement to return early if there is nothing to revoke
+          session.clear()
+          return@withContext
+        }
+
+        try {
+          val token = refreshToken ?: accessToken!!
+          val typeHint = if (refreshToken != null) "refresh_token" else "access_token"
+          oidcHandlerService.revokeToken(
+              issuer,
+              token = token,
+              typeHint = typeHint,
+              clientId = clientId,
+          )
+        } catch (e: Error) {
+          logging.debug("Failed to call revoke endpoint", e)
+        } finally {
+          session.clear()
+        }
+      }
+
   private suspend fun continueFlow(oidcParams: OidcParams, parameters: Parameters) {
     val sessionId = parameters["session_id"]
     if (sessionId != null) {
