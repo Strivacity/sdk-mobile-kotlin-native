@@ -29,7 +29,7 @@ internal constructor(
     private val redirectURI: String,
     private val postLogoutURI: String,
     val session: Session,
-    private val mode: SdkMode = SdkMode.Android,
+    private val  mode: SdkMode = SdkMode.Android,
     private val dispatchers: SDKDispatchers = DefaultSDKDispatchers,
     private val clock: Clock = Clock.systemUTC(),
     private val logging: Logging = DefaultLogging(),
@@ -104,19 +104,26 @@ internal constructor(
                   parameters.append("scope", scopes.joinToString(separator = " "))
                   logging.debug("NativeSDK: Login scopes: ${parameters["scope"]}")
 
-                  if (loginParameters?.loginHint != null) {
-                    parameters.append("login_hint", loginParameters.loginHint)
-                    logging.debug("NativeSDK: Login hint provided")
-                  }
-
-                  if (loginParameters?.acrValue != null) {
-                    parameters.append("acr_values", loginParameters.acrValue)
-                    logging.debug("NativeSDK: ACR value: ${loginParameters.acrValue}")
-                  }
-
-                  if (loginParameters?.prompt != null) {
-                    parameters.append("prompt", loginParameters.prompt)
-                    logging.debug("NativeSDK: Prompt: ${loginParameters.prompt}")
+                  loginParameters?.let {
+                    it.loginHint?.let { hint ->
+                      logging.debug("NativeSDK: Login hint provided")
+                      parameters.append("login_hint", hint)
+                    }
+                    it.acrValue?.let { acr ->
+                      logging.debug("NativeSDK: ACR value: ${loginParameters.acrValue}")
+                      parameters.append("acr_values", acr)
+                    }
+                    it.prompt?.let { prompt ->
+                      logging.debug("NativeSDK: Prompt: ${loginParameters.prompt}")
+                      parameters.append("prompt", prompt)
+                    }
+                    it.audiences
+                        ?.filter { aud -> aud.isNotBlank() }
+                        ?.takeIf { audiences -> audiences.isNotEmpty() }
+                        ?.let { audiences ->
+                          logging.debug("NativeSDK: Audiences: $audiences")
+                          parameters.append("audience", audiences.joinToString(" "))
+                        }
                   }
                 }
                 .build()
@@ -404,10 +411,8 @@ internal constructor(
   internal suspend fun refreshTokensIfNeeded(): Boolean =
       tokenRefreshMutex.withLock {
         val accessTokenExpiresAt = session.profile.value?.accessTokenExpiresAt
-        if (
-            accessTokenExpiresAt == null ||
-                accessTokenExpiresAt.isAfter(Instant.now(clock).plus(1, ChronoUnit.MINUTES))
-        ) {
+        if (accessTokenExpiresAt == null ||
+            accessTokenExpiresAt.isAfter(Instant.now(clock).plus(1, ChronoUnit.MINUTES))) {
           return false
         }
 
@@ -456,6 +461,7 @@ data class LoginParameters(
     val loginHint: String? = null,
     val acrValue: String? = null,
     val scopes: List<String>? = null,
+    val audiences: List<String>? = null,
 )
 
 enum class SdkMode(val value: String) {

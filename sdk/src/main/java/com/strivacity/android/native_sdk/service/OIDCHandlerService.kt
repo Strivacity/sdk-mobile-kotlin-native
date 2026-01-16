@@ -26,11 +26,9 @@ internal class OIDCHandlerService(
     val location: Url
     if (url.protocol.name == "https") {
       val response = httpService.get(url, acceptHeader = ContentType.Text.Html)
-      if (
-          response.status.value == 200 &&
-              response.request.url.host == url.host &&
-              response.request.url.encodedPath == "/oauth2/error"
-      ) {
+      if (response.status.value == 200 &&
+          response.request.url.host == url.host &&
+          response.request.url.encodedPath == "/oauth2/error") {
         return response.request.url.parameters
       }
 
