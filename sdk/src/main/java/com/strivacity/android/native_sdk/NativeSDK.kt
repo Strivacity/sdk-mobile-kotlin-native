@@ -1,6 +1,7 @@
 package com.strivacity.android.native_sdk
 
 import android.content.Context
+import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.core.net.toUri
 import com.strivacity.android.native_sdk.render.FallbackHandler
@@ -11,6 +12,9 @@ import com.strivacity.android.native_sdk.service.OIDCHandlerService
 import com.strivacity.android.native_sdk.service.OidcParams
 import com.strivacity.android.native_sdk.service.TokenExchangeParams
 import com.strivacity.android.native_sdk.service.TokenRefreshParams
+import io.ktor.client.call.body
+import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
 import io.ktor.http.URLBuilder
 import io.ktor.http.path
@@ -57,6 +61,12 @@ internal constructor(
   )
 
   var loginController: LoginController? = null
+
+  /** JSON Key name for error mnemonic in response object */
+  private val ERROR_KEY: String = "error"
+
+  /** JSON Key name for error description in response object */
+  private val ERROR_DESCRIPTION_KEY: String = "error_description"
 
   internal val tokenRefreshMutex = Mutex()
 
@@ -179,6 +189,98 @@ internal constructor(
         onError = onError,
         loginParameters = loginParameters,
     )
+  }
+
+  suspend fun entry(
+      uri: Uri?,
+      fallbackHandler: FallbackHandler,
+      onSuccess: () -> Unit,
+      onError: (Error) -> Unit
+  ) {
+    withContext(dispatchers.IO) {
+      cleanup()
+
+      logging.info("NativeSDK: Starting workflow")
+      val oidcParams = OidcParams(onSuccess, onError)
+
+      if (uri == null) {
+        onError(UnknownError(RuntimeException("Entry URI is null")))
+        return@withContext
+      }
+
+      val challenge = uri.getQueryParameter("challenge")
+      if (challenge == null || challenge.trim().isEmpty()) {
+        onError(UnknownError(RuntimeException("Entry challenge parameter is missing")))
+        return@withContext
+      }
+
+      val url =
+          URLBuilder(issuer)
+              .apply {
+                path("/provider/flow/entry")
+                parameters.append("challenge", challenge)
+                parameters.append("client_id", clientId)
+                parameters.append("redirect_uri", redirectURI)
+              }
+              .build()
+
+      val response = httpService.get(url, acceptHeader = ContentType.Text.Html)
+      if (response.status == HttpStatusCode.BadRequest) {
+        val body = response.body<Map<String, String>>()
+
+        if (!body.containsKey(ERROR_KEY)) {
+          onError(
+              UnknownError(
+                  RuntimeException(String.format("Workflow error: %s is null", ERROR_KEY))))
+          return@withContext
+        }
+
+        val error = body[ERROR_KEY].toString()
+        val errorDescription = body[ERROR_DESCRIPTION_KEY]
+        onError(WorkflowError(error, errorDescription))
+        return@withContext
+      }
+
+      if (response.status == HttpStatusCode.InternalServerError) {
+        logging.debug("Ensure that authentication client has entry URL configured.")
+        onError(
+            UnknownError(RuntimeException("Server failed to answer - 500 status code received")))
+        return@withContext
+      }
+
+      val locationHeader = response.headers["location"]
+      if (locationHeader == null) {
+        onError(
+            UnknownError(RuntimeException("Expected to find Location header but it was not found")))
+        return@withContext
+      }
+
+      val parameters: Parameters = URLBuilder(locationHeader).build().parameters
+      val sessionId = parameters["session_id"]
+      if (sessionId == null) {
+        onError(
+            UnknownError(RuntimeException("Failed to start session: session_id missing or blank")))
+        return@withContext
+      }
+
+      val loginHandlerService = LoginHandlerService(httpService, issuer, sessionId)
+      val loginController =
+          LoginController(
+              this@NativeSDK,
+              loginHandlerService,
+              oidcParams,
+              fallbackHandler,
+              logging,
+          )
+
+      loginController.initialize()
+      this@NativeSDK.loginController = loginController
+
+      session.setLoginInProgress(true)
+      logging.info("NativeSDK: Login flow started")
+
+      onSuccess()
+    }
   }
 
   suspend fun isAuthenticated(): Boolean =

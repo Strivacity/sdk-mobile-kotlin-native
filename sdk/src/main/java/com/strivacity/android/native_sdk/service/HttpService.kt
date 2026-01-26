@@ -71,6 +71,18 @@ internal class HttpService(
     }
   }
 
+  suspend fun post(
+      url: Url,
+      acceptHeader: ContentType = ContentType.Application.Json
+  ): HttpResponse {
+    return client.post(url) {
+      accept(acceptHeader)
+      contentType(ContentType.Application.Json)
+      setBody(body)
+      headers.apply { append("Accept-Language", Locale.getDefault().language) }
+    }
+  }
+
   suspend fun postForm(
       url: String,
       body: Parameters,

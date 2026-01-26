@@ -3,12 +3,14 @@ package com.strivacity.android.app
 import android.app.ComponentCaller
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -37,8 +39,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.lifecycleScope
 import com.strivacity.android.app.ui.theme.SdkmobilekotlinnativeTheme
 import com.strivacity.android.native_sdk.Error
 import com.strivacity.android.native_sdk.HostedFlowCanceledError
@@ -46,46 +50,97 @@ import com.strivacity.android.native_sdk.LoginParameters
 import com.strivacity.android.native_sdk.NativeSDK
 import com.strivacity.android.native_sdk.OidcError
 import com.strivacity.android.native_sdk.SessionExpiredError
+import com.strivacity.android.native_sdk.WorkflowError
+import com.strivacity.android.native_sdk.render.FallbackHandler
 import com.strivacity.android.native_sdk.render.LoginController
-import com.strivacity.android.native_sdk.render.models.*
+import com.strivacity.android.native_sdk.render.models.GlobalMessages
 import java.lang.ref.WeakReference
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
+  private val ENTRY_URL: String = "https://example.org/entry"
+
+  private val WORKFLOW_ERROR_ID_TO_MESSAGE: Map<WorkflowError.WorkflowErrorId, String> =
+      mapOf(
+          WorkflowError.WorkflowErrorId.MAGIC_LINK_EXPIRED to "Your link has expired",
+          WorkflowError.WorkflowErrorId.CLIENT_MISMATCH to
+              "An unexpected error occurred, please try again (001)",
+          WorkflowError.WorkflowErrorId.INVALID_REDIRECT_URI to
+              "An unexpected error occurred, please try again (002)")
+
+  private var nativeSDK: NativeSDK? = null
+
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
 
-    enableEdgeToEdge()
-    setContent { SdkmobilekotlinnativeTheme { Main() } }
-  }
-
-  override fun onNewIntent(intent: Intent, caller: ComponentCaller) {
-    super.onNewIntent(intent, caller)
-    setIntent(intent)
-  }
-}
-
-@Composable
-fun Main() {
-  val context = LocalContext.current
-  val nativeSDK by remember {
-    mutableStateOf(
+    nativeSDK =
         NativeSDK(
             "https://example.org",
             "",
             "android://native-flow",
             "android://native-flow",
             SharedPreferenceStorage(
-                context.getSharedPreferences("kotlin-demo", Context.MODE_PRIVATE))))
+                this@MainActivity.getSharedPreferences("kotlin-demo", Context.MODE_PRIVATE)))
+
+    enableEdgeToEdge()
+    setContent { SdkmobilekotlinnativeTheme { Main() } }
   }
 
-  Scaffold(modifier = Modifier.fillMaxSize(), floatingActionButton = { CancelFAB(nativeSDK) }) {
-      innerPadding ->
-    Box(
-        modifier = Modifier.fillMaxSize().padding(innerPadding),
-        contentAlignment = Alignment.Center) {
-          Login(nativeSDK)
+  override fun onResume() {
+    super.onResume()
+
+    if (intent.dataString?.startsWith(ENTRY_URL) == true) {
+      entry(intent.data)
+      intent.data = null
+    }
+  }
+
+  private fun entry(uri: Uri?) {
+    lifecycleScope.launch {
+      val context = this@MainActivity
+      val customTabsHandler: FallbackHandler = { uri ->
+        run {
+          val customTabsIntent = CustomTabsIntent.Builder().build()
+          customTabsIntent.launchUrl(context, uri.toUri())
+        }
+      }
+
+      nativeSDK?.entry(
+          uri,
+          customTabsHandler,
+          {},
+          { e ->
+            var mappedErrorMessage: String? = null
+            if (e is WorkflowError) {
+              val idValue: String = e.error
+              val errorId: WorkflowError.WorkflowErrorId? =
+                  WorkflowError.WorkflowErrorId.valueOfId(idValue)
+              mappedErrorMessage = WORKFLOW_ERROR_ID_TO_MESSAGE[errorId]
+            }
+
+            val toastText = mappedErrorMessage ?: "Something bad happened, please try again"
+            lifecycleScope.launch { Toast.makeText(context, toastText, Toast.LENGTH_SHORT).show() }
+          })
+      intent.data = null
+    }
+  }
+
+  override fun onNewIntent(intent: Intent, caller: ComponentCaller) {
+    super.onNewIntent(intent, caller)
+    setIntent(intent)
+  }
+
+  @Composable
+  fun Main() {
+    Scaffold(
+        modifier = Modifier.fillMaxSize(), floatingActionButton = { CancelFAB(nativeSDK!!) }) {
+            innerPadding ->
+          Box(
+              modifier = Modifier.fillMaxSize().padding(innerPadding),
+              contentAlignment = Alignment.Center) {
+                Login(nativeSDK!!)
+              }
         }
   }
 }

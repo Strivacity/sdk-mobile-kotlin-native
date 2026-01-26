@@ -16,6 +16,7 @@ kotlinx-serialization-json = "1.8.1"
 kotlinx-coroutines-test = "1.10.2"
 browser = "1.8.0"
 mockito = "6.1.0"
+browserVersion = "1.9.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -44,6 +45,7 @@ kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serializa
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines-test" }
 androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "browser" }
 mockito = { module="org.mockito.kotlin:mockito-kotlin", version.ref="mockito" }
+browser = { group = "androidx.browser", name = "browser", version.ref = "browserVersion" }
 
 
 [plugins]
