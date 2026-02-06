@@ -44,7 +44,6 @@ class Session(
   private val _profile = MutableStateFlow<Profile?>(null)
   val profile: StateFlow<Profile?> = _profile
 
-
   fun setLoginInProgress(value: Boolean) {
     _loginInProgress.value = value
   }

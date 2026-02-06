@@ -12,6 +12,7 @@ import io.ktor.client.engine.mock.MockEngineConfig
 import io.ktor.client.engine.mock.MockRequestHandleScope
 import io.ktor.client.request.HttpRequestData
 import io.ktor.client.request.HttpResponseData
+import io.ktor.http.Headers
 import io.ktor.http.Parameters
 import java.time.Clock
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -100,6 +101,19 @@ fun captureParams(
     val response = handler(request)
     if (response != null) {
       withParams(request.url.parameters)
+    }
+    return response
+  }
+}
+
+fun captureHeaders(
+    handler: ChainedMockRequestHandler,
+    withHeaders: (Headers) -> Unit,
+): ChainedMockRequestHandler {
+  return fun MockRequestHandleScope.(request: HttpRequestData): HttpResponseData? {
+    val response = handler(request)
+    if (response != null) {
+      withHeaders(request.headers)
     }
     return response
   }

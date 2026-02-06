@@ -149,6 +149,42 @@ fun MockRequestHandleScope.respondInit200(
       }
     }
 
+fun MockRequestHandleScope.respondEntry302(
+    request: HttpRequestData,
+): HttpResponseData? =
+    with(request.url.encodedPath) {
+      when {
+        startsWith("/provider/flow/entry") -> {
+          respond(
+              "",
+              HttpStatusCode.Found,
+              headers {
+                set(
+                    HttpHeaders.Location,
+                    "android://native-flow?session_id=c45f0b69-9e1e-42db-8419-125ad8885d9a")
+              },
+          )
+        }
+        else -> null
+      }
+    }
+
+fun MockRequestHandleScope.respondEntry400(
+    request: HttpRequestData,
+): HttpResponseData? =
+    with(request.url.encodedPath) {
+      when {
+        startsWith("/provider/flow/entry") -> {
+          respond(
+              fakeEntryMagicLinkExpiredResponsePayload,
+              HttpStatusCode.BadRequest,
+              headers { set(HttpHeaders.ContentType, ContentType.Application.Json.toString()) },
+          )
+        }
+        else -> null
+      }
+    }
+
 const val fakeInitResponsePayload =
     """
 {
@@ -203,5 +239,13 @@ const val fakeInitResponsePayload =
       ]
     }
   ]
+}
+"""
+
+const val fakeEntryMagicLinkExpiredResponsePayload =
+    """
+{
+  "error": "magicLinkExpired",
+  "error_description": "This magic link has been expired"
 }
 """
