@@ -4,12 +4,16 @@ package com.strivacity.android.native_sdk
 
 import FakeLogging
 import TokenResponseBuilder
+import android.net.Uri
 import com.strivacity.android.native_sdk.mocks.MutableTestClock
 import com.strivacity.android.native_sdk.mocks.NativeSDKBuilder
+import com.strivacity.android.native_sdk.mocks.captureHeaders
 import com.strivacity.android.native_sdk.mocks.captureParams
 import com.strivacity.android.native_sdk.mocks.expiredAccessToken
 import com.strivacity.android.native_sdk.mocks.fakeInitResponsePayload
 import com.strivacity.android.native_sdk.mocks.missingAccessToken
+import com.strivacity.android.native_sdk.mocks.respondEntry302
+import com.strivacity.android.native_sdk.mocks.respondEntry400
 import com.strivacity.android.native_sdk.mocks.respondFlowOAuthError
 import com.strivacity.android.native_sdk.mocks.respondFlowRedirect
 import com.strivacity.android.native_sdk.mocks.respondInit200
@@ -28,8 +32,8 @@ import com.strivacity.android.native_sdk.service.OidcParams
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.MockRequestHandleScope
 import io.ktor.client.engine.mock.respond
-import io.ktor.client.request.request
 import io.ktor.http.ContentType
+import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
@@ -37,6 +41,7 @@ import io.ktor.http.encodedPath
 import io.ktor.http.fullPath
 import io.ktor.http.headers
 import io.ktor.http.headersOf
+import java.util.UUID
 import kotlin.time.Duration.Companion.hours
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
@@ -50,6 +55,7 @@ import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
 import org.mockito.Mockito
 import org.mockito.kotlin.atLeastOnce
 import org.mockito.kotlin.doReturn
@@ -57,6 +63,7 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.spy
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.verifyNoMoreInteractions
+import org.robolectric.RobolectricTestRunner
 
 internal abstract class NativeSDKTestBase {
   protected lateinit var sdkBuilder: NativeSDKBuilder
@@ -463,21 +470,18 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
         fallbackHandler = testFallbackHandler,
         loginParameters = LoginParameters(),
     )
-    assertEquals("response_type", requestParams["response_type"], "code")
-    assertEquals("client_id", requestParams["client_id"], "test_client")
+    assertEquals("response_type", "code", requestParams["response_type"])
+    assertEquals("client_id", "test_client", requestParams["client_id"])
     assertEquals(
-        "redirect_uri",
-        requestParams["redirect_uri"],
-        "test-scheme://my-test-app/redirUrl",
-    )
+        "redirect_uri", "test-scheme://my-test-app/redirUrl", requestParams["redirect_uri"])
     assertNotNull(requestParams["state"])
     assertNotNull(requestParams["nonce"])
     assertNotNull(requestParams["code_challenge"])
     assertNull(requestParams["audience"])
-    assertEquals("code_challenge_method", requestParams["code_challenge_method"], "S256")
-    assertEquals("sdk", requestParams["sdk"], SdkMode.Android.value)
-    assertEquals("scope", requestParams["scope"], "openid profile")
-    assertEquals("Number of parameters", requestParams.entries().count(), 9)
+    assertEquals("code_challenge_method", "S256", requestParams["code_challenge_method"])
+    assertEquals("sdk", SdkMode.Android.value, requestParams["sdk"])
+    assertEquals("scope", "openid profile", requestParams["scope"])
+    assertEquals("Number of parameters", 9, requestParams.entries().count())
   }
 
   @Test
@@ -501,7 +505,7 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
         loginParameters = LoginParameters(scopes = listOf("profile", "openid", "offline")),
     )
 
-    assertEquals(requestParams["scope"], "profile openid offline")
+    assertEquals("profile openid offline", requestParams["scope"])
   }
 
   @Test
@@ -525,7 +529,7 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
         loginParameters = LoginParameters(loginHint = "some_login_hint"),
     )
 
-    assertEquals(requestParams["login_hint"], "some_login_hint")
+    assertEquals("some_login_hint", requestParams["login_hint"])
   }
 
   @Test
@@ -549,7 +553,7 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
         loginParameters = LoginParameters(acrValue = "some_acr_value"),
     )
 
-    assertEquals(requestParams["acr_values"], "some_acr_value")
+    assertEquals("some_acr_value", requestParams["acr_values"])
   }
 
   @Test
@@ -573,7 +577,7 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
         loginParameters = LoginParameters(prompt = "some_prompt"),
     )
 
-    assertEquals(requestParams["prompt"], "some_prompt")
+    assertEquals("some_prompt", requestParams["prompt"])
   }
 
   @Test
@@ -713,8 +717,8 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
         onError = { ex ->
           run {
             assertTrue("Is OidcError", ex is OidcError)
-            assertEquals((ex as OidcError).error, "test-error")
-            assertEquals(ex.errorDescription, "SomeTestErrorDescription")
+            assertEquals("test-error", (ex as OidcError).error)
+            assertEquals("SomeTestErrorDescription", ex.errorDescription)
             onErrorCalled = true
           }
         },
@@ -1022,5 +1026,109 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
     }
     val screen = json.decodeFromString<Screen>(fakeInitResponsePayload)
     assertNotNull(screen)
+  }
+}
+
+@RunWith(RobolectricTestRunner::class)
+internal class NativeSDKEntryTest : NativeSDKTestBase() {
+  @Test
+  fun entry_shouldBuildDefaultParams() = runTest {
+    lateinit var entryRequestParams: Parameters
+    lateinit var initRequestHeaders: Headers
+
+    val challenge: String = UUID.randomUUID().toString()
+
+    val sdk =
+        sdkBuilder
+            .apply { scheduler = testScheduler }
+            .http(
+                captureParams(MockRequestHandleScope::respondEntry302) { params ->
+                  entryRequestParams = params
+                })
+            .http(
+                captureHeaders(MockRequestHandleScope::respondInit200) { params ->
+                  initRequestHeaders = params
+                })
+            .build()
+    val testFallbackHandler: FallbackHandler = { uri -> run { println(uri) } }
+    sdk.entry(
+        Uri.parse("test-scheme://my-test-app/entry?challenge=$challenge"),
+        fallbackHandler = testFallbackHandler,
+        onSuccess = {},
+        onError = {})
+
+    assertEquals("challenge", challenge, entryRequestParams["challenge"])
+    assertEquals("client_id", "test_client", entryRequestParams["client_id"])
+    assertEquals(
+        "redirect_uri", "test-scheme://my-test-app/redirUrl", entryRequestParams["redirect_uri"])
+
+    assertEquals(
+        "session_id",
+        "Bearer c45f0b69-9e1e-42db-8419-125ad8885d9a",
+        initRequestHeaders["Authorization"])
+  }
+
+  @Test
+  fun entry_uriNull() = runTest {
+    var onErrorCalled = false
+    var onSuccessCalled = false
+
+    val sdk =
+        sdkBuilder
+            .apply { scheduler = testScheduler }
+            .http(MockRequestHandleScope::respondEntry302)
+            .http(MockRequestHandleScope::respondInit200)
+            .build()
+    val testFallbackHandler: FallbackHandler = { uri -> run { println(uri) } }
+    sdk.entry(
+        null,
+        fallbackHandler = testFallbackHandler,
+        onSuccess = { onSuccessCalled = true },
+        onError = { onErrorCalled = true })
+    assertFalse(onSuccessCalled)
+    assertTrue(onErrorCalled)
+  }
+
+  @Test
+  fun entry_uriWithoutChallenge() = runTest {
+    var onErrorCalled = false
+    var onSuccessCalled = false
+
+    val sdk =
+        sdkBuilder
+            .apply { scheduler = testScheduler }
+            .http(MockRequestHandleScope::respondEntry302)
+            .http(MockRequestHandleScope::respondInit200)
+            .build()
+    val testFallbackHandler: FallbackHandler = { uri -> run { println(uri) } }
+    sdk.entry(
+        Uri.parse("test-scheme://my-test-app/entry"),
+        fallbackHandler = testFallbackHandler,
+        onSuccess = { onSuccessCalled = true },
+        onError = { onErrorCalled = true })
+    assertFalse(onSuccessCalled)
+    assertTrue(onErrorCalled)
+  }
+
+  @Test
+  fun entry_magicLinkExpired() = runTest {
+    var onErrorCalled = false
+    var onSuccessCalled = false
+
+    val challenge: String = UUID.randomUUID().toString()
+
+    val sdk =
+        sdkBuilder
+            .apply { scheduler = testScheduler }
+            .http(MockRequestHandleScope::respondEntry400)
+            .build()
+    val testFallbackHandler: FallbackHandler = { uri -> run { println(uri) } }
+    sdk.entry(
+        Uri.parse("test-scheme://my-test-app/entry?challenge=$challenge"),
+        fallbackHandler = testFallbackHandler,
+        onSuccess = { onSuccessCalled = true },
+        onError = { onErrorCalled = true })
+    assertFalse(onSuccessCalled)
+    assertTrue(onErrorCalled)
   }
 }
