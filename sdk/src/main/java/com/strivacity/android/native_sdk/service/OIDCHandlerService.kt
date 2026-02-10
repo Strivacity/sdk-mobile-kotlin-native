@@ -25,7 +25,7 @@ internal class OIDCHandlerService(
 ) {
 
   suspend fun handleCall(url: Url): Parameters {
-    var location: Url
+    val location: Url
     if (url.protocol.name == "https") {
       val response = httpService.get(url, acceptHeader = ContentType.Text.Html)
       if (
