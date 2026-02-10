@@ -12,8 +12,8 @@ import com.strivacity.android.native_sdk.mocks.captureParams
 import com.strivacity.android.native_sdk.mocks.expiredAccessToken
 import com.strivacity.android.native_sdk.mocks.fakeInitResponsePayload
 import com.strivacity.android.native_sdk.mocks.missingAccessToken
-import com.strivacity.android.native_sdk.mocks.respondEntry302
 import com.strivacity.android.native_sdk.mocks.respondEntry400
+import com.strivacity.android.native_sdk.mocks.respondEntryWithRedirectBody
 import com.strivacity.android.native_sdk.mocks.respondFlowOAuthError
 import com.strivacity.android.native_sdk.mocks.respondFlowRedirect
 import com.strivacity.android.native_sdk.mocks.respondInit200
@@ -37,12 +37,9 @@ import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
-import io.ktor.http.encodedPath
 import io.ktor.http.fullPath
 import io.ktor.http.headers
 import io.ktor.http.headersOf
-import java.util.UUID
-import kotlin.time.Duration.Companion.hours
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -64,6 +61,8 @@ import org.mockito.kotlin.spy
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.verifyNoMoreInteractions
 import org.robolectric.RobolectricTestRunner
+import java.util.UUID
+import kotlin.time.Duration.Companion.hours
 
 internal abstract class NativeSDKTestBase {
   protected lateinit var sdkBuilder: NativeSDKBuilder
@@ -1042,7 +1041,7 @@ internal class NativeSDKEntryTest : NativeSDKTestBase() {
         sdkBuilder
             .apply { scheduler = testScheduler }
             .http(
-                captureParams(MockRequestHandleScope::respondEntry302) { params ->
+                captureParams(MockRequestHandleScope::respondEntryWithRedirectBody) { params ->
                   entryRequestParams = params
                 })
             .http(
@@ -1076,7 +1075,7 @@ internal class NativeSDKEntryTest : NativeSDKTestBase() {
     val sdk =
         sdkBuilder
             .apply { scheduler = testScheduler }
-            .http(MockRequestHandleScope::respondEntry302)
+            .http(MockRequestHandleScope::respondEntryWithRedirectBody)
             .http(MockRequestHandleScope::respondInit200)
             .build()
     val testFallbackHandler: FallbackHandler = { uri -> run { println(uri) } }
@@ -1097,7 +1096,7 @@ internal class NativeSDKEntryTest : NativeSDKTestBase() {
     val sdk =
         sdkBuilder
             .apply { scheduler = testScheduler }
-            .http(MockRequestHandleScope::respondEntry302)
+            .http(MockRequestHandleScope::respondEntryWithRedirectBody)
             .http(MockRequestHandleScope::respondInit200)
             .build()
     val testFallbackHandler: FallbackHandler = { uri -> run { println(uri) } }

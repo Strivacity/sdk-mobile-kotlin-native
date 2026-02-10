@@ -2,10 +2,12 @@ package com.strivacity.android.native_sdk.service
 
 import com.strivacity.android.native_sdk.Error
 import com.strivacity.android.native_sdk.HttpError
+import com.strivacity.android.native_sdk.InvalidCallbackError
 import com.strivacity.android.native_sdk.Logging
 import com.strivacity.android.native_sdk.util.OIDCParamGenerator
 import io.ktor.client.call.body
 import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
 import io.ktor.client.statement.request
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
@@ -23,22 +25,25 @@ internal class OIDCHandlerService(
 ) {
 
   suspend fun handleCall(url: Url): Parameters {
-    val location: Url
+    var location: Url
     if (url.protocol.name == "https") {
       val response = httpService.get(url, acceptHeader = ContentType.Text.Html)
-      if (response.status.value == 200 &&
-          response.request.url.host == url.host &&
-          response.request.url.encodedPath == "/oauth2/error") {
+      if (
+          response.status.value == 200 &&
+              response.request.url.host == url.host &&
+              response.request.url.encodedPath == "/oauth2/error"
+      ) {
         return response.request.url.parameters
       }
 
-      if (response.status.value != 302 && response.status.value != 303) {
-        throw HttpError(statusCode = response.status.value)
+      try {
+        location = Url(response.bodyAsText())
+      } catch (ex: Throwable) {
+        logging.debug(
+            "Could not parse response body as redirect URL, falling back to Location header", ex
+        )
+        throw InvalidCallbackError("Expected redirect URL in response body but was not found")
       }
-
-      val locationHeader =
-          response.headers["location"] ?: throw IllegalStateException("No location header found")
-      location = URLBuilder(locationHeader).build()
     } else {
       location = url
     }
@@ -89,7 +94,6 @@ internal class OIDCHandlerService(
     }
 
     return httpResponse
-
   }
 }
 
