@@ -40,7 +40,7 @@ internal class OIDCHandlerService(
         location = Url(response.bodyAsText())
       } catch (ex: Throwable) {
         logging.debug(
-            "Could not parse response body as redirect URL, falling back to Location header", ex
+            "Could not parse response body as redirect URL", ex
         )
         throw InvalidCallbackError("Expected redirect URL in response body but was not found")
       }
