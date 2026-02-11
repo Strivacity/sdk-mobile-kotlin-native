@@ -222,6 +222,7 @@ internal constructor(
                 parameters.append("challenge", challenge)
                 parameters.append("client_id", clientId)
                 parameters.append("redirect_uri", redirectURI)
+                parameters.append("sdk", mode.value)
               }
               .build()
 
