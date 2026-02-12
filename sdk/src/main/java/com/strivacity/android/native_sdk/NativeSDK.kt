@@ -13,6 +13,7 @@ import com.strivacity.android.native_sdk.service.OidcParams
 import com.strivacity.android.native_sdk.service.TokenExchangeParams
 import com.strivacity.android.native_sdk.service.TokenRefreshParams
 import io.ktor.client.call.body
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
@@ -221,6 +222,7 @@ internal constructor(
                 parameters.append("challenge", challenge)
                 parameters.append("client_id", clientId)
                 parameters.append("redirect_uri", redirectURI)
+                parameters.append("sdk", mode.value)
               }
               .build()
 
@@ -248,14 +250,14 @@ internal constructor(
         return@withContext
       }
 
-      val locationHeader = response.headers["location"]
-      if (locationHeader == null) {
+      val redirectLocation = response.bodyAsText()
+      if (redirectLocation.isEmpty()) {
         onError(
-            UnknownError(RuntimeException("Expected to find Location header but it was not found")))
+            UnknownError(RuntimeException("Expected to find redirect body but it was not found")))
         return@withContext
       }
 
-      val parameters = URLBuilder(locationHeader).build().parameters
+      val parameters = URLBuilder(redirectLocation).build().parameters
       val sessionId = parameters["session_id"]
       if (sessionId == null) {
         onError(

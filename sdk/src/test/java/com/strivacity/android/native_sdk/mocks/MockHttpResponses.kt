@@ -17,14 +17,8 @@ fun MockRequestHandleScope.respondFlowRedirect(request: HttpRequestData): HttpRe
       when {
         startsWith("/oauth2/auth") ->
             respond(
-                "",
-                HttpStatusCode.Found,
-                headers {
-                  set(
-                      HttpHeaders.Location,
-                      "test-scheme://my-test-app/redirUrl?session_id=test-session-id",
-                  )
-                },
+                "test-scheme://my-test-app/redirUrl?session_id=test-session-id",
+                HttpStatusCode.OK,
             )
 
         else -> null
@@ -74,14 +68,8 @@ fun MockRequestHandleScope.respondPostLoginRedirect(
                   .build()
                   .toString()
           respond(
-              "",
-              HttpStatusCode.Found,
-              headers {
-                set(
-                    HttpHeaders.Location,
-                    redirectUrl,
-                )
-              },
+            redirectUrl,
+              HttpStatusCode.OK,
           )
         }
         else -> null
@@ -149,20 +137,15 @@ fun MockRequestHandleScope.respondInit200(
       }
     }
 
-fun MockRequestHandleScope.respondEntry302(
+fun MockRequestHandleScope.respondEntryWithRedirectBody(
     request: HttpRequestData,
 ): HttpResponseData? =
     with(request.url.encodedPath) {
       when {
         startsWith("/provider/flow/entry") -> {
           respond(
-              "",
-              HttpStatusCode.Found,
-              headers {
-                set(
-                    HttpHeaders.Location,
-                    "android://native-flow?session_id=c45f0b69-9e1e-42db-8419-125ad8885d9a")
-              },
+              "android://native-flow?session_id=c45f0b69-9e1e-42db-8419-125ad8885d9a",
+              HttpStatusCode.OK,
           )
         }
         else -> null
