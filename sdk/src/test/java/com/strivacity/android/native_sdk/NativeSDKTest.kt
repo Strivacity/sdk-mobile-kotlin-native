@@ -29,6 +29,7 @@ import com.strivacity.android.native_sdk.service.HttpService
 import com.strivacity.android.native_sdk.service.LoginHandlerService
 import com.strivacity.android.native_sdk.service.OIDCHandlerService
 import com.strivacity.android.native_sdk.service.OidcParams
+import com.strivacity.android.native_sdk.service.TokenResponse
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.MockRequestHandleScope
 import io.ktor.client.engine.mock.respond
@@ -40,7 +41,11 @@ import io.ktor.http.Parameters
 import io.ktor.http.fullPath
 import io.ktor.http.headers
 import io.ktor.http.headersOf
+import io.ktor.util.toMap
+import java.util.UUID
+import kotlin.time.Duration.Companion.hours
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
@@ -53,16 +58,16 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.ArgumentMatchers.contains
 import org.mockito.Mockito
 import org.mockito.kotlin.atLeastOnce
 import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.isNull
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.spy
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.verifyNoMoreInteractions
 import org.robolectric.RobolectricTestRunner
-import java.util.UUID
-import kotlin.time.Duration.Companion.hours
 
 internal abstract class NativeSDKTestBase {
   protected lateinit var sdkBuilder: NativeSDKBuilder
@@ -75,7 +80,7 @@ internal abstract class NativeSDKTestBase {
   @Before
   fun setUp() {
     testStorage = TestStorage()
-    testLogging = FakeLogging()
+    testLogging = spy(FakeLogging())
     testSession = spy(Session(testStorage, testLogging))
     testClock = MutableTestClock()
     sdkBuilder = NativeSDKBuilder {
@@ -317,8 +322,8 @@ internal class NativeSDKTest : NativeSDKTestBase() {
   @Test
   fun continueFlow_shouldCancelFlow_whenUriIsNull() = runTest {
     val httpService =
-      HttpService(
-            logging = FakeLogging(),
+        HttpService(
+            logging = testLogging,
             MockEngine { throw AssertionError("Test should never invoke HttpClient") },
         )
     val sdk =
@@ -332,15 +337,15 @@ internal class NativeSDKTest : NativeSDKTestBase() {
         LoginHandlerService(httpService, "http://localhost/", "test-session-id")
     lateinit var error: Error
     val loginController =
-      LoginController(
-        sdk,
-        loginHandlerService,
-        OidcParams(
-          onSuccess = {},
-          onError = { err -> error = err },
-        ),
-        fallbackHandler = {},
-      logging = FakeLogging(),
+        LoginController(
+            sdk,
+            loginHandlerService,
+            OidcParams(
+                onSuccess = {},
+                onError = { err -> error = err },
+            ),
+            fallbackHandler = {},
+            logging = testLogging,
         )
     sdk.loginController = loginController
 
@@ -364,31 +369,71 @@ internal class NativeSDKLogout : NativeSDKTestBase() {
   @Test
   fun shouldPassRequiredParams(): Unit = runTest {
     val tokenResponse = TokenResponseBuilder().createAsTokenResponse()
+
+    val (sdk, logoutParameters) =
+        setUpLogoutSDK("test-scheme://my-test-app/logoutCallback", tokenResponse, testScheduler)
+
+    sdk.logout()
+
+    assertTrue(
+        "Logout should contain id_token_hint param",
+        logoutParameters["id_token_hint"]?.single() == tokenResponse.idToken,
+    )
+    assertTrue(
+        "Logout should contain post_logout_redirect_uri",
+        logoutParameters["post_logout_redirect_uri"]?.single() ==
+            "test-scheme://my-test-app/logoutCallback",
+    )
+  }
+
+  @Test
+  fun shouldLogWhenRedirectUriMismatch(): Unit = runTest {
+    val (sdk, _) =
+        setUpLogoutSDK(
+            "/landing#loggedOut", TokenResponseBuilder().createAsTokenResponse(), testScheduler)
+    sdk.logout()
+
+    verify(testLogging)
+        .warn(
+            contains(
+                "Logout redirect does not match expected logout URL. " +
+                    "This is likely a misconfiguration of `postLogoutURI`"),
+            isNull())
+  }
+
+  fun setUpLogoutSDK(
+      redirectUrl: String,
+      tokenResponse: TokenResponse,
+      testScheduler: TestCoroutineScheduler
+  ): Pair<NativeSDK, Map<String, List<String>>> {
     val profile = Profile(tokenResponse)
 
-    lateinit var logoutParameters: Parameters
+    val logoutParameters = mutableMapOf<String, List<String>>()
     val mockEngine = MockEngine { request ->
       with(request.url) {
         when {
           fullPath.startsWith("/oauth2/sessions/logout") -> {
-            logoutParameters = parameters
+            logoutParameters.putAll(parameters.toMap())
             respond(
                 content = "",
                 status = HttpStatusCode.Found,
                 headers =
                     headers {
                       set(HttpHeaders.ContentType, ContentType.Text.Html.contentType)
-                      set(HttpHeaders.Location, "test-scheme://my-test-app/logoutCallback")
+                      set(HttpHeaders.Location, redirectUrl)
                     },
             )
+          }
+          fullPath.startsWith("/landing") -> {
+            respond("", status = HttpStatusCode.OK)
           }
 
           else -> throw AssertionError("Unexpected http call to: ${request.url}")
         }
       }
     }
-    val httpService = HttpService(logging = FakeLogging(), mockEngine)
-    val oidcHandlerService = spy(OIDCHandlerService(httpService, logging = FakeLogging()))
+    val httpService = HttpService(logging = testLogging, mockEngine)
+    val oidcHandlerService = spy(OIDCHandlerService(httpService, logging = testLogging))
     val sdk =
         sdkBuilder
             .store { storeProfile(profile) }
@@ -397,20 +442,7 @@ internal class NativeSDKLogout : NativeSDKTestBase() {
               this.oidcHandlerService = oidcHandlerService
             }
             .build()
-
-    sdk.logout()
-
-    assertTrue(
-        "Logout should contain id_token_hint param",
-        logoutParameters.contains("id_token_hint", tokenResponse.idToken),
-    )
-    assertTrue(
-        "Logout should contain post_logout_redirect_uri",
-        logoutParameters.contains(
-            "post_logout_redirect_uri",
-            "test-scheme://my-test-app/logoutCallback",
-        ),
-    )
+    return Pair(sdk, logoutParameters)
   }
 }
 

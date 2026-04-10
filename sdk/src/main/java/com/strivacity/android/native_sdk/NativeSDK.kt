@@ -34,7 +34,7 @@ internal constructor(
     private val redirectURI: String,
     private val postLogoutURI: String,
     val session: Session,
-    private val  mode: SdkMode = SdkMode.Android,
+    private val mode: SdkMode = SdkMode.Android,
     private val dispatchers: SDKDispatchers = DefaultSDKDispatchers,
     private val clock: Clock = Clock.systemUTC(),
     private val logging: Logging = DefaultLogging(),
@@ -292,8 +292,7 @@ internal constructor(
         val authenticated = session.profile.value != null
         if (refreshed) {
           logging.debug(
-              "NativeSDK: Authentication check - tokens refreshed, authenticated: $authenticated"
-          )
+              "NativeSDK: Authentication check - tokens refreshed, authenticated: $authenticated")
         } else {
           logging.debug("NativeSDK: Authentication check - authenticated: $authenticated")
         }
@@ -387,7 +386,12 @@ internal constructor(
 
         try {
           logging.debug("NativeSDK: submitting logout request")
-          oidcHandlerService.handleCall(url)
+          val redirectURI = oidcHandlerService.logout(url)
+          if (redirectURI == null || redirectURI.lowercase() != postLogoutURI.lowercase()) {
+            logging.warn(
+                "Logout redirect does not match expected logout URL. " +
+                    "This is likely a misconfiguration of `postLogoutURI`")
+          }
           logging.info("NativeSDK: User logged out")
         } catch (e: Error) {
           logging.warn("NativeSDK: Failed to call logout endpoint $e", e)
@@ -542,8 +546,7 @@ internal constructor(
         } catch (e: HttpError) {
           if (e.statusCode in listOf(401, 403)) {
             logging.warn(
-                "NativeSDK: Token refresh failed with status ${e.statusCode}, clearing session"
-            )
+                "NativeSDK: Token refresh failed with status ${e.statusCode}, clearing session")
             session.clear()
             return false
           }
