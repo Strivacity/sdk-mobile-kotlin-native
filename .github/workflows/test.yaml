@@ -2,9 +2,11 @@ name: test
 
 on:
   pull_request:
-    branches: [ "main" ]
+    branches:
+      - "main"
   push:
-    branches: [ "test/improve-test-coverage" ]
+    branches:
+      - "test/improve-test-coverage"
   workflow_dispatch:
 
 jobs:
@@ -13,17 +15,18 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: "Checkout"
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: "Setup up java"
         uses: actions/setup-java@v5
         with:
-          distribution: "temurin"
+          distribution: "liberica"
           java-version: "21"
 
       - name: "Setup gradle"
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-disabled: true
 
       - name: "Run tests"
         run: ./gradlew :sdk:test --no-daemon
-        
