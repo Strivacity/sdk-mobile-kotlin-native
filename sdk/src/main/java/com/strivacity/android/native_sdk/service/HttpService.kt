@@ -1,9 +1,11 @@
 package com.strivacity.android.native_sdk.service
 
 import com.strivacity.android.native_sdk.Logging
+import com.strivacity.android.native_sdk.NetworkConfiguration
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.android.Android
+import io.ktor.client.plugins.UserAgent
 import io.ktor.client.plugins.api.createClientPlugin
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.cookies.HttpCookies
@@ -13,7 +15,6 @@ import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
-import io.ktor.client.statement.bodyAsText
 import io.ktor.client.statement.request
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -24,12 +25,13 @@ import io.ktor.http.contentType
 import io.ktor.http.encodedPath
 import io.ktor.http.protocolWithAuthority
 import io.ktor.serialization.kotlinx.json.json
-import java.util.Locale
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import java.util.Locale
 
 internal class HttpService(
     private val logging: Logging,
+    private val networkConfiguration: NetworkConfiguration,
     clientEngine: HttpClientEngine = Android.create(),
 ) {
   private val client =
@@ -43,6 +45,10 @@ internal class HttpService(
           )
         }
         install(HttpCookies)
+        install(CustomRequestHeadersPlugin) {
+          this.headers = networkConfiguration.customRequestHeaders
+        }
+        install(UserAgent) { agent = networkConfiguration.userAgent }
         install(LoggingClientPlugin) { this@install.logging = this@HttpService.logging }
       }
 
@@ -121,4 +127,15 @@ private val LoggingClientPlugin =
 
 internal class LoggingClientPluginConfig {
   lateinit var logging: Logging
+}
+
+private val CustomRequestHeadersPlugin =
+    createClientPlugin("SDKCustomHeadersPlugin", ::CustomRequestHeadersPluginConfig) {
+      val headers = pluginConfig.headers
+
+      onRequest { request, _ -> headers.forEach { (key, value) -> request.headers[key] = value } }
+    }
+
+internal class CustomRequestHeadersPluginConfig {
+  lateinit var headers: Map<String, String>
 }

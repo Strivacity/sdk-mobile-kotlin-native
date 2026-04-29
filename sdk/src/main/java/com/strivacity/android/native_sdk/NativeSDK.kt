@@ -19,28 +19,32 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
 import io.ktor.http.URLBuilder
 import io.ktor.http.path
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.lang.ref.WeakReference
 import java.time.Clock
 import java.time.Instant
 import java.time.temporal.ChronoUnit
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 
 class NativeSDK
 internal constructor(
-    private val issuer: String,
-    private val clientId: String,
-    private val redirectURI: String,
-    private val postLogoutURI: String,
-    val session: Session,
-    private val mode: SdkMode = SdkMode.Android,
-    private val dispatchers: SDKDispatchers = DefaultSDKDispatchers,
-    private val clock: Clock = Clock.systemUTC(),
-    private val logging: Logging = DefaultLogging(),
-    private val httpService: HttpService = HttpService(logging = logging),
-    private val oidcHandlerService: OIDCHandlerService =
-        OIDCHandlerService(httpService = httpService, logging = logging),
+  private val issuer: String,
+  private val clientId: String,
+  private val redirectURI: String,
+  private val postLogoutURI: String,
+  val session: Session,
+  private val mode: SdkMode = SdkMode.Android,
+  private val dispatchers: SDKDispatchers = DefaultSDKDispatchers,
+  private val clock: Clock = Clock.systemUTC(),
+  private val logging: Logging = DefaultLogging(),
+  private val networkConfiguration: NetworkConfiguration = NetworkConfiguration(),
+  private val httpService: HttpService = HttpService(
+    logging = logging,
+    networkConfiguration = networkConfiguration
+  ),
+  private val oidcHandlerService: OIDCHandlerService =
+    OIDCHandlerService(httpService = httpService, logging = logging),
 ) {
 
   constructor(
@@ -51,6 +55,7 @@ internal constructor(
       storage: Storage,
       mode: SdkMode = SdkMode.Android,
       logging: Logging = DefaultLogging(),
+      networkConfiguration: NetworkConfiguration = NetworkConfiguration(),
   ) : this(
       issuer = issuer,
       clientId = clientId,
@@ -59,6 +64,7 @@ internal constructor(
       session = Session(storage, logging),
       mode = mode,
       logging = logging,
+      networkConfiguration = networkConfiguration
   )
 
   var loginController: LoginController? = null
@@ -563,6 +569,46 @@ internal constructor(
     loginController = null
   }
 }
+
+/**
+ * A header field name that must start with the `x-sty-` prefix.
+ *
+ * Headers using this convention are appended to every network request towards the Strivacity
+ * server. Because of the `x-sty-` prefix they are forwarded to and available in server-side
+ * event Hooks on the backend.
+ */
+typealias CustomHeaderFieldName = String
+
+/**
+ * Static configuration for the network communication layer of the SDK.
+ *
+ * @property userAgent The User-Agent header value sent with every network request.
+ *   Defaults to `"strivacity-sdk-android"`.
+ * @property customRequestHeaders Additional HTTP headers included in every network request.
+ *   Every key must be a [CustomHeaderFieldName], i.e. it must start with the `x-sty-` prefix —
+ *   this is enforced at construction time and an [IllegalArgumentException] is thrown otherwise.
+ *   Headers with the `x-sty-` prefix are available in server-side event Hooks on the backend.
+ *   Defaults to an empty map.
+ */
+data class NetworkConfiguration(
+  val userAgent: String = "strivacity-sdk-android",
+  val customRequestHeaders: Map<CustomHeaderFieldName, String> = emptyMap()
+) {
+  init {
+    require(customRequestHeaders.all { kv -> kv.key.startsWith("x-sty-") }) {
+      "Custom request headers must start with `x-sty-` prefix."
+    }
+  }
+}
+
+/**
+ * Returns a copy of this [NetworkConfiguration] with the `x-sty-sdk-version` custom header set to
+ * the current [SDKVersion]. Useful for correlating server-side Hook events with a specific SDK
+ * release.
+ */
+fun NetworkConfiguration.addSdkVersionCustomHeader(): NetworkConfiguration =
+  this.copy(customRequestHeaders = customRequestHeaders + ("x-sty-sdk-version" to SDKVersion))
+
 
 data class LoginParameters(
     val prompt: String? = null,
