@@ -324,6 +324,7 @@ internal class NativeSDKTest : NativeSDKTestBase() {
     val httpService =
         HttpService(
             logging = testLogging,
+            networkConfiguration = NetworkConfiguration(),
             MockEngine { throw AssertionError("Test should never invoke HttpClient") },
         )
     val sdk =
@@ -390,21 +391,26 @@ internal class NativeSDKLogout : NativeSDKTestBase() {
   fun shouldLogWhenRedirectUriMismatch(): Unit = runTest {
     val (sdk, _) =
         setUpLogoutSDK(
-            "/landing#loggedOut", TokenResponseBuilder().createAsTokenResponse(), testScheduler)
+            "/landing#loggedOut",
+            TokenResponseBuilder().createAsTokenResponse(),
+            testScheduler,
+        )
     sdk.logout()
 
     verify(testLogging)
         .warn(
             contains(
                 "Logout redirect does not match expected logout URL. " +
-                    "This is likely a misconfiguration of `postLogoutURI`"),
-            isNull())
+                    "This is likely a misconfiguration of `postLogoutURI`"
+            ),
+            isNull(),
+        )
   }
 
   fun setUpLogoutSDK(
       redirectUrl: String,
       tokenResponse: TokenResponse,
-      testScheduler: TestCoroutineScheduler
+      testScheduler: TestCoroutineScheduler,
   ): Pair<NativeSDK, Map<String, List<String>>> {
     val profile = Profile(tokenResponse)
 
@@ -432,7 +438,12 @@ internal class NativeSDKLogout : NativeSDKTestBase() {
         }
       }
     }
-    val httpService = HttpService(logging = testLogging, mockEngine)
+    val httpService =
+        HttpService(
+            logging = testLogging,
+            networkConfiguration = NetworkConfiguration(),
+            mockEngine,
+        )
     val oidcHandlerService = spy(OIDCHandlerService(httpService, logging = testLogging))
     val sdk =
         sdkBuilder
@@ -491,7 +502,8 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
             .http(
                 captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
                   requestParams = params
-                })
+                }
+            )
             .http(MockRequestHandleScope::respondInit200)
             .build()
     val testFallbackHandler: FallbackHandler = { uri -> run { println(uri) } }
@@ -504,7 +516,10 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
     assertEquals("response_type", "code", requestParams["response_type"])
     assertEquals("client_id", "test_client", requestParams["client_id"])
     assertEquals(
-        "redirect_uri", "test-scheme://my-test-app/redirUrl", requestParams["redirect_uri"])
+        "redirect_uri",
+        "test-scheme://my-test-app/redirUrl",
+        requestParams["redirect_uri"],
+    )
     assertNotNull(requestParams["state"])
     assertNotNull(requestParams["nonce"])
     assertNotNull(requestParams["code_challenge"])
@@ -524,7 +539,8 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
             .http(
                 captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
                   requestParams = params
-                })
+                }
+            )
             .http(MockRequestHandleScope::respondInit200)
             .build()
 
@@ -548,7 +564,8 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
             .http(
                 captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
                   requestParams = params
-                })
+                }
+            )
             .http(MockRequestHandleScope::respondInit200)
             .build()
 
@@ -572,7 +589,8 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
             .http(
                 captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
                   requestParams = params
-                })
+                }
+            )
             .http(MockRequestHandleScope::respondInit200)
             .build()
 
@@ -596,7 +614,8 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
             .http(
                 captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
                   requestParams = params
-                })
+                }
+            )
             .http(MockRequestHandleScope::respondInit200)
             .build()
 
@@ -620,7 +639,8 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
             .http(
                 captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
                   requestParams = params
-                })
+                }
+            )
             .http(MockRequestHandleScope::respondInit200)
             .build()
 
@@ -644,7 +664,8 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
             .http(
                 captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
                   requestParams = params
-                })
+                }
+            )
             .http(MockRequestHandleScope::respondInit200)
             .build()
 
@@ -668,7 +689,8 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
             .http(
                 captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
                   requestParams = params
-                })
+                }
+            )
             .http(MockRequestHandleScope::respondInit200)
             .build()
 
@@ -692,7 +714,8 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
             .http(
                 captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
                   requestParams = params
-                })
+                }
+            )
             .http(MockRequestHandleScope::respondInit200)
             .build()
 
@@ -1075,28 +1098,35 @@ internal class NativeSDKEntryTest : NativeSDKTestBase() {
             .http(
                 captureParams(MockRequestHandleScope::respondEntryWithRedirectBody) { params ->
                   entryRequestParams = params
-                })
+                }
+            )
             .http(
                 captureHeaders(MockRequestHandleScope::respondInit200) { params ->
                   initRequestHeaders = params
-                })
+                }
+            )
             .build()
     val testFallbackHandler: FallbackHandler = { uri -> run { println(uri) } }
     sdk.entry(
         Uri.parse("test-scheme://my-test-app/entry?challenge=$challenge"),
         fallbackHandler = testFallbackHandler,
         onSuccess = {},
-        onError = {})
+        onError = {},
+    )
 
     assertEquals("challenge", challenge, entryRequestParams["challenge"])
     assertEquals("client_id", "test_client", entryRequestParams["client_id"])
     assertEquals(
-        "redirect_uri", "test-scheme://my-test-app/redirUrl", entryRequestParams["redirect_uri"])
+        "redirect_uri",
+        "test-scheme://my-test-app/redirUrl",
+        entryRequestParams["redirect_uri"],
+    )
 
     assertEquals(
         "session_id",
         "Bearer c45f0b69-9e1e-42db-8419-125ad8885d9a",
-        initRequestHeaders["Authorization"])
+        initRequestHeaders["Authorization"],
+    )
   }
 
   @Test
@@ -1115,7 +1145,8 @@ internal class NativeSDKEntryTest : NativeSDKTestBase() {
         null,
         fallbackHandler = testFallbackHandler,
         onSuccess = { onSuccessCalled = true },
-        onError = { onErrorCalled = true })
+        onError = { onErrorCalled = true },
+    )
     assertFalse(onSuccessCalled)
     assertTrue(onErrorCalled)
   }
@@ -1136,7 +1167,8 @@ internal class NativeSDKEntryTest : NativeSDKTestBase() {
         Uri.parse("test-scheme://my-test-app/entry"),
         fallbackHandler = testFallbackHandler,
         onSuccess = { onSuccessCalled = true },
-        onError = { onErrorCalled = true })
+        onError = { onErrorCalled = true },
+    )
     assertFalse(onSuccessCalled)
     assertTrue(onErrorCalled)
   }
@@ -1158,7 +1190,8 @@ internal class NativeSDKEntryTest : NativeSDKTestBase() {
         Uri.parse("test-scheme://my-test-app/entry?challenge=$challenge"),
         fallbackHandler = testFallbackHandler,
         onSuccess = { onSuccessCalled = true },
-        onError = { onErrorCalled = true })
+        onError = { onErrorCalled = true },
+    )
     assertFalse(onSuccessCalled)
     assertTrue(onErrorCalled)
   }

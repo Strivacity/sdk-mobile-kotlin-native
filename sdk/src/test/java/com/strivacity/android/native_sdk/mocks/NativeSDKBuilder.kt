@@ -3,6 +3,7 @@ package com.strivacity.android.native_sdk.mocks
 import FakeLogging
 import com.strivacity.android.native_sdk.Logging
 import com.strivacity.android.native_sdk.NativeSDK
+import com.strivacity.android.native_sdk.NetworkConfiguration
 import com.strivacity.android.native_sdk.Session
 import com.strivacity.android.native_sdk.Storage
 import com.strivacity.android.native_sdk.service.HttpService
@@ -56,9 +57,19 @@ internal class NativeSDKBuilder {
           throw Exception("Handler not defined for request: $request")
         }
       }
-      httpService = HttpService(logging = logging, MockEngine(engineConfig))
+      httpService =
+          HttpService(
+              logging = logging,
+              networkConfiguration = NetworkConfiguration(),
+              MockEngine(engineConfig),
+          )
     } else {
-      httpService = this.httpService ?: HttpService(logging = logging)
+      httpService =
+          this.httpService
+              ?: HttpService(
+                  logging = logging,
+                  networkConfiguration = NetworkConfiguration(),
+              )
     }
     val sdk =
         NativeSDK(
