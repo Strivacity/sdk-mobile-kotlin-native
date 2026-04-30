@@ -10,11 +10,17 @@ android {
     namespace = "com.strivacity.android.native_sdk"
     compileSdk = 36
 
+    buildFeatures {
+      buildConfig = true
+    }
+
     defaultConfig {
         minSdk = 28
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
+        // set SDK VERSION to publish version or fall back to 0.0.0 for development
+        buildConfigField("String", "STRIVACITY_SDK_VERSION", "\"${findProperty("sdkVersion") ?: "0.0.0"}\"")
     }
 
     buildTypes {

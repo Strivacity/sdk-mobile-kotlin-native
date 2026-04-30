@@ -74,6 +74,8 @@ The `addSdkVersionCustomHeader()` extension function returns a copy of `NetworkC
 NetworkConfiguration().addSdkVersionCustomHeader()
 ```
 
+> **Note for SDK developers:** The SDK version is sourced from the `sdkVersion` Gradle property (set via `-PsdkVersion=<value>` at build time). When the property is not provided — e.g. during local development — the version defaults to `0.0.0`.
+
 **Example — adding the SDK version and a custom app-version header:**
 
 ```kotlin

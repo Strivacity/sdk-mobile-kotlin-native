@@ -607,7 +607,7 @@ data class NetworkConfiguration(
  * release.
  */
 fun NetworkConfiguration.addSdkVersionCustomHeader(): NetworkConfiguration =
-  this.copy(customRequestHeaders = customRequestHeaders + ("x-sty-sdk-version" to SDKVersion))
+  this.copy(customRequestHeaders = customRequestHeaders + ("x-sty-sdk-version" to BuildConfig.STRIVACITY_SDK_VERSION))
 
 
 data class LoginParameters(
