@@ -42,11 +42,57 @@ NativeSDK(
      "<client-id>",                 // specifies OAuth2 client ID
      "<redirect-uri>",              // specifies the redirect uri, e.g.: android://native-flow
      "<post-logout-uri>",           // specifies the post logout uri, e.g.: android://native-flow
-     storage                        // provide a `com.strivacity.android.native_sdk.Storage` implementation
+     storage,                       // provide a `com.strivacity.android.native_sdk.Storage` implementation
+     networkConfiguration = NetworkConfiguration()  // optional, see Network Configuration below
  )
 ```
 
 An example implementation `SharedPreferenceStorage` is given for the Storage interface using `SharedPreferences` as a backend.
+
+### Network Configuration
+
+The `NetworkConfiguration` data class controls the HTTP layer of the SDK. All properties are optional and fall back to sensible defaults.
+
+```kotlin
+data class NetworkConfiguration(
+    val userAgent: String = "strivacity-sdk-android",          // Value of the User-Agent header sent with every request
+    val customRequestHeaders: Map<String, String> = emptyMap() // Extra headers appended to every request (keys must start with `x-sty-`)
+)
+```
+
+**`userAgent`** — overrides the `User-Agent` header value. Useful when you need to identify your app alongside the SDK. Must be at least 3 characters after trimming; an `IllegalArgumentException` is thrown at construction time otherwise.
+
+**`customRequestHeaders`** — additional headers included in every outgoing request. Keys **must** satisfy all of the following rules:
+- prefixed with `x-sty-` (e.g. `x-sty-my-header`)
+- entirely **lowercase**
+- not equal to the bare prefix `"x-sty-"` (i.e. must have at least one character after the prefix)
+
+Violating any of these rules throws an `IllegalArgumentException` at construction time. Headers carrying the `x-sty-` prefix are forwarded to the Strivacity backend and are accessible inside **Hooks**, allowing server-side logic to act on values passed from the mobile app (e.g. app version, feature flags).
+
+#### Adding the SDK version header
+
+The `addSdkVersionCustomHeader()` extension function returns a copy of `NetworkConfiguration` with the `x-sty-sdk-version` header set to the current SDK version. This header is forwarded to server-side Hooks, making it easy to correlate backend events with a specific SDK release.
+
+```kotlin
+NetworkConfiguration().addSdkVersionCustomHeader()
+```
+
+> **Note for SDK developers:** The SDK version is sourced from the `sdkVersion` Gradle property (set via `-PsdkVersion=<value>` at build time). When the property is not provided — e.g. during local development — the version defaults to `0.0.0`.
+
+**Example — adding the SDK version and a custom app-version header:**
+
+```kotlin
+val sdk = NativeSDK(
+    issuer = "https://your-domain.tld",
+    clientId = "<client-id>",
+    redirectURI = "android://native-flow",
+    postLogoutURI = "android://native-flow",
+    storage = storage,
+    networkConfiguration = NetworkConfiguration(
+        customRequestHeaders = mapOf("x-sty-app-version" to "1.2.3")
+    ).addSdkVersionCustomHeader()
+)
+```
 
 ## Register the custom schema
 

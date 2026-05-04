@@ -2,6 +2,7 @@ package com.strivacity.android.native_sdk.service
 
 import FakeLogging
 import com.strivacity.android.native_sdk.HttpError
+import com.strivacity.android.native_sdk.NetworkConfiguration
 import com.strivacity.android.native_sdk.SessionExpiredError
 import com.strivacity.android.native_sdk.mocks.fakeInitResponsePayload
 import io.ktor.client.engine.mock.MockEngine
@@ -18,7 +19,11 @@ class LoginHandlerServiceTest {
   @Test
   fun initCall_shouldThrowSessionExpiredError_whenStatusIs403() {
     val service =
-        HttpService(logging = FakeLogging(), MockEngine { respond("", HttpStatusCode.Forbidden) })
+        HttpService(
+            logging = FakeLogging(),
+            networkConfiguration = NetworkConfiguration(),
+            MockEngine { respond("", HttpStatusCode.Forbidden) },
+        )
     val handlerService = LoginHandlerService(service, "https://localhost/", "test-session-id")
 
     assertThrows(SessionExpiredError::class.java) { runBlocking { handlerService.initCall() } }
@@ -29,6 +34,7 @@ class LoginHandlerServiceTest {
     val service =
         HttpService(
             logging = FakeLogging(),
+            networkConfiguration = NetworkConfiguration(),
             MockEngine { respond("", HttpStatusCode.InternalServerError) },
         )
     val handlerService = LoginHandlerService(service, "https://localhost/", "test-session-id")
@@ -40,6 +46,7 @@ class LoginHandlerServiceTest {
     val service =
         HttpService(
             logging = FakeLogging(),
+            networkConfiguration = NetworkConfiguration(),
             MockEngine {
               respond(
                   fakeInitResponsePayload,
@@ -57,6 +64,7 @@ class LoginHandlerServiceTest {
     val service =
         HttpService(
             logging = FakeLogging(),
+            networkConfiguration = NetworkConfiguration(),
             MockEngine {
               respond(
                   "",
@@ -75,6 +83,7 @@ class LoginHandlerServiceTest {
     val service =
         HttpService(
             logging = FakeLogging(),
+            networkConfiguration = NetworkConfiguration(),
             MockEngine {
               respond(
                   "",

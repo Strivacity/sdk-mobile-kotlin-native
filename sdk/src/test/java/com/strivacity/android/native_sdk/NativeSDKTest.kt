@@ -54,6 +54,7 @@ import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -74,8 +75,8 @@ internal abstract class NativeSDKTestBase {
   protected lateinit var testClock: MutableTestClock
   protected lateinit var testSession: Session
   protected lateinit var testStorage: TestStorage
-
   protected lateinit var testLogging: Logging
+  protected lateinit var testNetworkConfiguration: NetworkConfiguration
 
   @Before
   fun setUp() {
@@ -83,11 +84,13 @@ internal abstract class NativeSDKTestBase {
     testLogging = spy(FakeLogging())
     testSession = spy(Session(testStorage, testLogging))
     testClock = MutableTestClock()
+    testNetworkConfiguration = NetworkConfiguration()
     sdkBuilder = NativeSDKBuilder {
       this.storage = testStorage
       this.session = testSession
       this.clock = testClock
       this.logging = testLogging
+      this.networkConfiguration = testNetworkConfiguration
     }
   }
 }
@@ -324,6 +327,7 @@ internal class NativeSDKTest : NativeSDKTestBase() {
     val httpService =
         HttpService(
             logging = testLogging,
+            networkConfiguration = NetworkConfiguration(),
             MockEngine { throw AssertionError("Test should never invoke HttpClient") },
         )
     val sdk =
@@ -390,21 +394,26 @@ internal class NativeSDKLogout : NativeSDKTestBase() {
   fun shouldLogWhenRedirectUriMismatch(): Unit = runTest {
     val (sdk, _) =
         setUpLogoutSDK(
-            "/landing#loggedOut", TokenResponseBuilder().createAsTokenResponse(), testScheduler)
+            "/landing#loggedOut",
+            TokenResponseBuilder().createAsTokenResponse(),
+            testScheduler,
+        )
     sdk.logout()
 
     verify(testLogging)
         .warn(
             contains(
                 "Logout redirect does not match expected logout URL. " +
-                    "This is likely a misconfiguration of `postLogoutURI`"),
-            isNull())
+                    "This is likely a misconfiguration of `postLogoutURI`"
+            ),
+            isNull(),
+        )
   }
 
   fun setUpLogoutSDK(
       redirectUrl: String,
       tokenResponse: TokenResponse,
-      testScheduler: TestCoroutineScheduler
+      testScheduler: TestCoroutineScheduler,
   ): Pair<NativeSDK, Map<String, List<String>>> {
     val profile = Profile(tokenResponse)
 
@@ -432,7 +441,12 @@ internal class NativeSDKLogout : NativeSDKTestBase() {
         }
       }
     }
-    val httpService = HttpService(logging = testLogging, mockEngine)
+    val httpService =
+        HttpService(
+            logging = testLogging,
+            networkConfiguration = NetworkConfiguration(),
+            mockEngine,
+        )
     val oidcHandlerService = spy(OIDCHandlerService(httpService, logging = testLogging))
     val sdk =
         sdkBuilder
@@ -491,7 +505,8 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
             .http(
                 captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
                   requestParams = params
-                })
+                }
+            )
             .http(MockRequestHandleScope::respondInit200)
             .build()
     val testFallbackHandler: FallbackHandler = { uri -> run { println(uri) } }
@@ -504,7 +519,10 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
     assertEquals("response_type", "code", requestParams["response_type"])
     assertEquals("client_id", "test_client", requestParams["client_id"])
     assertEquals(
-        "redirect_uri", "test-scheme://my-test-app/redirUrl", requestParams["redirect_uri"])
+        "redirect_uri",
+        "test-scheme://my-test-app/redirUrl",
+        requestParams["redirect_uri"],
+    )
     assertNotNull(requestParams["state"])
     assertNotNull(requestParams["nonce"])
     assertNotNull(requestParams["code_challenge"])
@@ -524,7 +542,8 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
             .http(
                 captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
                   requestParams = params
-                })
+                }
+            )
             .http(MockRequestHandleScope::respondInit200)
             .build()
 
@@ -548,7 +567,8 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
             .http(
                 captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
                   requestParams = params
-                })
+                }
+            )
             .http(MockRequestHandleScope::respondInit200)
             .build()
 
@@ -572,7 +592,8 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
             .http(
                 captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
                   requestParams = params
-                })
+                }
+            )
             .http(MockRequestHandleScope::respondInit200)
             .build()
 
@@ -596,7 +617,8 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
             .http(
                 captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
                   requestParams = params
-                })
+                }
+            )
             .http(MockRequestHandleScope::respondInit200)
             .build()
 
@@ -620,7 +642,8 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
             .http(
                 captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
                   requestParams = params
-                })
+                }
+            )
             .http(MockRequestHandleScope::respondInit200)
             .build()
 
@@ -644,7 +667,8 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
             .http(
                 captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
                   requestParams = params
-                })
+                }
+            )
             .http(MockRequestHandleScope::respondInit200)
             .build()
 
@@ -668,7 +692,8 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
             .http(
                 captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
                   requestParams = params
-                })
+                }
+            )
             .http(MockRequestHandleScope::respondInit200)
             .build()
 
@@ -692,7 +717,8 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
             .http(
                 captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
                   requestParams = params
-                })
+                }
+            )
             .http(MockRequestHandleScope::respondInit200)
             .build()
 
@@ -1060,6 +1086,199 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
   }
 }
 
+internal class NetworkConfigurationTest : NativeSDKTestBase() {
+
+  @Test
+  fun defaultNetworkConfiguration_shouldUseDefaultUserAgentAndNoXStyHeaders() = runTest {
+    lateinit var capturedHeaders: Headers
+
+    val sdk =
+        sdkBuilder
+            .apply { scheduler = testScheduler }
+            .http(
+                captureHeaders(MockRequestHandleScope::respondFlowRedirect) { headers ->
+                  capturedHeaders = headers
+                }
+            )
+            .http(MockRequestHandleScope::respondInit200)
+            .build()
+
+    sdk.login(onSuccess = {}, onError = {}, fallbackHandler = {}, loginParameters = null)
+
+    assertEquals("strivacity-sdk-android", capturedHeaders[HttpHeaders.UserAgent])
+    assertTrue(
+        "No x-sty- prefixed headers should be present by default",
+        capturedHeaders.names().none { it.startsWith("x-sty-", ignoreCase = true) },
+    )
+  }
+
+  @Test
+  fun customUserAgent_shouldAppearExactlyInUserAgentHeader() = runTest {
+    lateinit var capturedHeaders: Headers
+
+    val sdk =
+        sdkBuilder
+            .apply {
+              scheduler = testScheduler
+              networkConfiguration = NetworkConfiguration(userAgent = "my-custom-agent")
+            }
+            .http(
+                captureHeaders(MockRequestHandleScope::respondFlowRedirect) { headers ->
+                  capturedHeaders = headers
+                }
+            )
+            .http(MockRequestHandleScope::respondInit200)
+            .build()
+
+    sdk.login(onSuccess = {}, onError = {}, fallbackHandler = {}, loginParameters = null)
+
+    assertEquals("my-custom-agent", capturedHeaders[HttpHeaders.UserAgent])
+  }
+
+  @Test
+  fun twoCustomRequestHeaders_shouldBothAppearInRequest() = runTest {
+    lateinit var capturedHeaders: Headers
+
+    val sdk =
+        sdkBuilder
+            .apply {
+              scheduler = testScheduler
+              networkConfiguration =
+                  NetworkConfiguration(
+                      customRequestHeaders = mapOf("x-sty-foo" to "bar", "x-sty-baz" to "qux")
+                  )
+            }
+            .http(
+                captureHeaders(MockRequestHandleScope::respondFlowRedirect) { headers ->
+                  capturedHeaders = headers
+                }
+            )
+            .http(MockRequestHandleScope::respondInit200)
+            .build()
+
+    sdk.login(onSuccess = {}, onError = {}, fallbackHandler = {}, loginParameters = null)
+
+    assertEquals("bar", capturedHeaders["x-sty-foo"])
+    assertEquals("qux", capturedHeaders["x-sty-baz"])
+  }
+
+  @Test
+  fun customRequestHeaderWithoutXStyPrefix_shouldThrowIllegalArgumentException() {
+    assertThrows(IllegalArgumentException::class.java) {
+      NetworkConfiguration(customRequestHeaders = mapOf("invalid-key" to "value"))
+    }
+  }
+
+  @Test
+  fun addSdkVersionCustomHeader_shouldAddXStySdkVersionHeader() = runTest {
+    lateinit var capturedHeaders: Headers
+
+    val sdk =
+        sdkBuilder
+            .apply {
+              scheduler = testScheduler
+              networkConfiguration = NetworkConfiguration().addSdkVersionCustomHeader()
+            }
+            .http(
+                captureHeaders(MockRequestHandleScope::respondFlowRedirect) { headers ->
+                  capturedHeaders = headers
+                }
+            )
+            .http(MockRequestHandleScope::respondInit200)
+            .build()
+
+    sdk.login(onSuccess = {}, onError = {}, fallbackHandler = {}, loginParameters = null)
+
+    assertEquals(
+        BuildConfig.STRIVACITY_SDK_VERSION,
+        capturedHeaders["x-sty-sdk-version"],
+    )
+  }
+
+  @Test
+  fun addSdkVersionCustomHeader_shouldRetainAlreadyDefinedCustomRequestHeaders() = runTest {
+    lateinit var capturedHeaders: Headers
+
+    val sdk =
+        sdkBuilder
+            .apply {
+              scheduler = testScheduler
+              networkConfiguration =
+                  NetworkConfiguration(customRequestHeaders = mapOf("x-sty-existing" to "v1"))
+                      .addSdkVersionCustomHeader()
+            }
+            .http(
+                captureHeaders(MockRequestHandleScope::respondFlowRedirect) { headers ->
+                  capturedHeaders = headers
+                }
+            )
+            .http(MockRequestHandleScope::respondInit200)
+            .build()
+
+    sdk.login(onSuccess = {}, onError = {}, fallbackHandler = {}, loginParameters = null)
+
+    assertEquals("v1", capturedHeaders["x-sty-existing"])
+    assertEquals(BuildConfig.STRIVACITY_SDK_VERSION, capturedHeaders["x-sty-sdk-version"])
+  }
+
+  @Test
+  fun addSdkVersionCustomHeader_calledTwice_shouldBeIdempotent() {
+    val config1 = NetworkConfiguration().addSdkVersionCustomHeader()
+    val config2 = config1.addSdkVersionCustomHeader()
+    assertSame(config1, config2)
+  }
+
+  @Test
+  fun customRequestHeader_withUppercase_shouldThrowIllegalArgumentException() {
+    assertThrows(IllegalArgumentException::class.java) {
+      NetworkConfiguration(customRequestHeaders = mapOf("X-STY-FOO" to "value2"))
+    }
+  }
+
+  @Test
+  fun customRequestHeader_withKeyEqualToPrefixOnly_shouldThrowIllegalArgumentException() {
+    assertThrows(IllegalArgumentException::class.java) {
+      NetworkConfiguration(customRequestHeaders = mapOf("x-sty-" to "value"))
+    }
+  }
+
+  @Test
+  fun customRequestHeaderValue_withSpacesAndSpecialChars_shouldBeSentVerbatim() = runTest {
+    lateinit var capturedHeaders: Headers
+
+    val verbatimValue = "value with spaces & special=chars! \uD83D\uDE0A"
+
+    val sdk =
+        sdkBuilder
+            .apply {
+              scheduler = testScheduler
+              networkConfiguration =
+                  NetworkConfiguration(customRequestHeaders = mapOf("x-sty-meta" to verbatimValue))
+            }
+            .http(
+                captureHeaders(MockRequestHandleScope::respondFlowRedirect) { headers ->
+                  capturedHeaders = headers
+                }
+            )
+            .http(MockRequestHandleScope::respondInit200)
+            .build()
+
+    sdk.login(onSuccess = {}, onError = {}, fallbackHandler = {}, loginParameters = null)
+
+    assertEquals(verbatimValue, capturedHeaders["x-sty-meta"])
+  }
+
+  @Test
+  fun userAgent_blank_shouldThrowIllegalArgumentException() {
+    assertThrows(IllegalArgumentException::class.java) { NetworkConfiguration(userAgent = "") }
+  }
+
+  @Test
+  fun userAgent_shorterThanThreeCharsAfterTrimming_shouldThrowIllegalArgumentException() {
+    assertThrows(IllegalArgumentException::class.java) { NetworkConfiguration(userAgent = " ab ") }
+  }
+}
+
 @RunWith(RobolectricTestRunner::class)
 internal class NativeSDKEntryTest : NativeSDKTestBase() {
   @Test
@@ -1075,28 +1294,35 @@ internal class NativeSDKEntryTest : NativeSDKTestBase() {
             .http(
                 captureParams(MockRequestHandleScope::respondEntryWithRedirectBody) { params ->
                   entryRequestParams = params
-                })
+                }
+            )
             .http(
                 captureHeaders(MockRequestHandleScope::respondInit200) { params ->
                   initRequestHeaders = params
-                })
+                }
+            )
             .build()
     val testFallbackHandler: FallbackHandler = { uri -> run { println(uri) } }
     sdk.entry(
         Uri.parse("test-scheme://my-test-app/entry?challenge=$challenge"),
         fallbackHandler = testFallbackHandler,
         onSuccess = {},
-        onError = {})
+        onError = {},
+    )
 
     assertEquals("challenge", challenge, entryRequestParams["challenge"])
     assertEquals("client_id", "test_client", entryRequestParams["client_id"])
     assertEquals(
-        "redirect_uri", "test-scheme://my-test-app/redirUrl", entryRequestParams["redirect_uri"])
+        "redirect_uri",
+        "test-scheme://my-test-app/redirUrl",
+        entryRequestParams["redirect_uri"],
+    )
 
     assertEquals(
         "session_id",
         "Bearer c45f0b69-9e1e-42db-8419-125ad8885d9a",
-        initRequestHeaders["Authorization"])
+        initRequestHeaders["Authorization"],
+    )
   }
 
   @Test
@@ -1115,7 +1341,8 @@ internal class NativeSDKEntryTest : NativeSDKTestBase() {
         null,
         fallbackHandler = testFallbackHandler,
         onSuccess = { onSuccessCalled = true },
-        onError = { onErrorCalled = true })
+        onError = { onErrorCalled = true },
+    )
     assertFalse(onSuccessCalled)
     assertTrue(onErrorCalled)
   }
@@ -1136,7 +1363,8 @@ internal class NativeSDKEntryTest : NativeSDKTestBase() {
         Uri.parse("test-scheme://my-test-app/entry"),
         fallbackHandler = testFallbackHandler,
         onSuccess = { onSuccessCalled = true },
-        onError = { onErrorCalled = true })
+        onError = { onErrorCalled = true },
+    )
     assertFalse(onSuccessCalled)
     assertTrue(onErrorCalled)
   }
@@ -1158,7 +1386,8 @@ internal class NativeSDKEntryTest : NativeSDKTestBase() {
         Uri.parse("test-scheme://my-test-app/entry?challenge=$challenge"),
         fallbackHandler = testFallbackHandler,
         onSuccess = { onSuccessCalled = true },
-        onError = { onErrorCalled = true })
+        onError = { onErrorCalled = true },
+    )
     assertFalse(onSuccessCalled)
     assertTrue(onErrorCalled)
   }
