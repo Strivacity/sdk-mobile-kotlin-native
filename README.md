@@ -60,11 +60,14 @@ data class NetworkConfiguration(
 )
 ```
 
-**`userAgent`** — overrides the `User-Agent` header value. Useful when you need to identify your app alongside the SDK.
+**`userAgent`** — overrides the `User-Agent` header value. Useful when you need to identify your app alongside the SDK. Must be at least 3 characters after trimming; an `IllegalArgumentException` is thrown at construction time otherwise.
 
-**`customRequestHeaders`** — additional headers included in every outgoing request. Keys **must** be prefixed with `x-sty-`. Headers carrying this prefix are forwarded to the Strivacity backend and are accessible inside **Hooks**, allowing server-side logic to act on values passed from the mobile app (e.g. app version, feature flags).
+**`customRequestHeaders`** — additional headers included in every outgoing request. Keys **must** satisfy all of the following rules:
+- prefixed with `x-sty-` (e.g. `x-sty-my-header`)
+- entirely **lowercase**
+- not equal to the bare prefix `"x-sty-"` (i.e. must have at least one character after the prefix)
 
-> **Note:** Passing a header key that does not start with `x-sty-` will throw an `IllegalArgumentException` at construction time.
+Violating any of these rules throws an `IllegalArgumentException` at construction time. Headers carrying the `x-sty-` prefix are forwarded to the Strivacity backend and are accessible inside **Hooks**, allowing server-side logic to act on values passed from the mobile app (e.g. app version, feature flags).
 
 #### Adding the SDK version header
 

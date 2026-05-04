@@ -577,7 +577,10 @@ internal constructor(
 }
 
 /**
- * A header field name that must start with the `x-sty-` prefix.
+ * A header field name that must comply with all of the following rules:
+ * - starts with the `x-sty-` prefix (e.g. `x-sty-my-header`)
+ * - is entirely lowercase
+ * - is not equal to the bare prefix `"x-sty-"` (i.e. must have at least one character after the prefix)
  *
  * Headers using this convention are appended to every network request towards the Strivacity
  * server. Because of the `x-sty-` prefix they are forwarded to and available in server-side event
@@ -589,12 +592,14 @@ typealias CustomHeaderFieldName = String
  * Static configuration for the network communication layer of the SDK.
  *
  * @property userAgent The User-Agent header value sent with every network request. Defaults to
- *   `"strivacity-sdk-android"`.
+ *   `"strivacity-sdk-android"`. Must be at least 3 characters after trimming; an
+ *   [IllegalArgumentException] is thrown at construction time otherwise.
  * @property customRequestHeaders Additional HTTP headers included in every network request. Every
- *   key must be a [CustomHeaderFieldName], i.e. it must start with the `x-sty-` prefix — this is
- *   enforced at construction time and an [IllegalArgumentException] is thrown otherwise. Headers
- *   with the `x-sty-` prefix are available in server-side event Hooks on the backend. Defaults to
- *   an empty map.
+ *   key must be a [CustomHeaderFieldName]: it must start with the `x-sty-` prefix, be entirely
+ *   lowercase, and not be equal to the bare prefix `"x-sty-"` — all three rules are enforced at
+ *   construction time and an [IllegalArgumentException] is thrown on violation. Headers with the
+ *   `x-sty-` prefix are available in server-side event Hooks on the backend. Defaults to an empty
+ *   map.
  */
 data class NetworkConfiguration(
     val userAgent: String = "strivacity-sdk-android",
@@ -602,7 +607,7 @@ data class NetworkConfiguration(
 ) {
 
   init {
-    require(userAgent.trim().count() >= 3) { "User agent must be longer than 3 characters" }
+    require(userAgent.trim().count() >= 3) { "User agent must be at least 3 characters" }
 
     require(customRequestHeaders.keys.all { key -> key.lowercase() == key }) {
       "Custom request headers must be defined with lowercase. eg. `x-sty-my-header`"

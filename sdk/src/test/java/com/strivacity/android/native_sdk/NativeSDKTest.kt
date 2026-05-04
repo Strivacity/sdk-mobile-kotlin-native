@@ -1222,7 +1222,7 @@ internal class NetworkConfigurationTest : NativeSDKTestBase() {
   }
 
   @Test
-  fun addSdkVersionCustomHeader_calledTwice_shouldThrow() {
+  fun addSdkVersionCustomHeader_calledTwice_shouldBeIdempotent() {
     val config1 = NetworkConfiguration().addSdkVersionCustomHeader()
     val config2 = config1.addSdkVersionCustomHeader()
     assertSame(config1, config2)
