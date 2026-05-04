@@ -19,32 +19,30 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
 import io.ktor.http.URLBuilder
 import io.ktor.http.path
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 import java.lang.ref.WeakReference
 import java.time.Clock
 import java.time.Instant
 import java.time.temporal.ChronoUnit
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 class NativeSDK
 internal constructor(
-  private val issuer: String,
-  private val clientId: String,
-  private val redirectURI: String,
-  private val postLogoutURI: String,
-  val session: Session,
-  private val mode: SdkMode = SdkMode.Android,
-  private val dispatchers: SDKDispatchers = DefaultSDKDispatchers,
-  private val clock: Clock = Clock.systemUTC(),
-  private val logging: Logging = DefaultLogging(),
-  private val networkConfiguration: NetworkConfiguration = NetworkConfiguration(),
-  private val httpService: HttpService = HttpService(
-    logging = logging,
-    networkConfiguration = networkConfiguration
-  ),
-  private val oidcHandlerService: OIDCHandlerService =
-    OIDCHandlerService(httpService = httpService, logging = logging),
+    private val issuer: String,
+    private val clientId: String,
+    private val redirectURI: String,
+    private val postLogoutURI: String,
+    val session: Session,
+    private val mode: SdkMode = SdkMode.Android,
+    private val dispatchers: SDKDispatchers = DefaultSDKDispatchers,
+    private val clock: Clock = Clock.systemUTC(),
+    private val logging: Logging = DefaultLogging(),
+    private val networkConfiguration: NetworkConfiguration = NetworkConfiguration(),
+    private val httpService: HttpService =
+        HttpService(logging = logging, networkConfiguration = networkConfiguration),
+    private val oidcHandlerService: OIDCHandlerService =
+        OIDCHandlerService(httpService = httpService, logging = logging),
 ) {
 
   constructor(
@@ -64,7 +62,7 @@ internal constructor(
       session = Session(storage, logging),
       mode = mode,
       logging = logging,
-      networkConfiguration = networkConfiguration
+      networkConfiguration = networkConfiguration,
   )
 
   var loginController: LoginController? = null
@@ -202,7 +200,7 @@ internal constructor(
       uri: Uri?,
       fallbackHandler: FallbackHandler,
       onSuccess: () -> Unit,
-      onError: (Error) -> Unit
+      onError: (Error) -> Unit,
   ) {
     logging.debug("NativeSDK: Attempting entry call")
     if (uri == null) {
@@ -238,8 +236,8 @@ internal constructor(
 
         if (!body.containsKey(ERROR_KEY)) {
           onError(
-              UnknownError(
-                  RuntimeException(String.format("Workflow error: %s is null", ERROR_KEY))))
+              UnknownError(RuntimeException(String.format("Workflow error: %s is null", ERROR_KEY)))
+          )
           return@withContext
         }
 
@@ -252,14 +250,16 @@ internal constructor(
       if (response.status == HttpStatusCode.InternalServerError) {
         logging.debug("Ensure that authentication client has entry URL configured.")
         onError(
-            UnknownError(RuntimeException("Server failed to answer - 500 status code received")))
+            UnknownError(RuntimeException("Server failed to answer - 500 status code received"))
+        )
         return@withContext
       }
 
       val redirectLocation = response.bodyAsText()
       if (redirectLocation.isEmpty()) {
         onError(
-            UnknownError(RuntimeException("Expected to find redirect body but it was not found")))
+            UnknownError(RuntimeException("Expected to find redirect body but it was not found"))
+        )
         return@withContext
       }
 
@@ -267,7 +267,8 @@ internal constructor(
       val sessionId = parameters["session_id"]
       if (sessionId == null) {
         onError(
-            UnknownError(RuntimeException("Failed to start session: session_id missing or blank")))
+            UnknownError(RuntimeException("Failed to start session: session_id missing or blank"))
+        )
         return@withContext
       }
 
@@ -298,7 +299,8 @@ internal constructor(
         val authenticated = session.profile.value != null
         if (refreshed) {
           logging.debug(
-              "NativeSDK: Authentication check - tokens refreshed, authenticated: $authenticated")
+              "NativeSDK: Authentication check - tokens refreshed, authenticated: $authenticated"
+          )
         } else {
           logging.debug("NativeSDK: Authentication check - authenticated: $authenticated")
         }
@@ -396,7 +398,8 @@ internal constructor(
           if (redirectURI == null || redirectURI.lowercase() != postLogoutURI.lowercase()) {
             logging.warn(
                 "Logout redirect does not match expected logout URL. " +
-                    "This is likely a misconfiguration of `postLogoutURI`")
+                    "This is likely a misconfiguration of `postLogoutURI`"
+            )
           }
           logging.info("NativeSDK: User logged out")
         } catch (e: Error) {
@@ -526,8 +529,10 @@ internal constructor(
   internal suspend fun refreshTokensIfNeeded(): Boolean =
       tokenRefreshMutex.withLock {
         val accessTokenExpiresAt = session.profile.value?.accessTokenExpiresAt
-        if (accessTokenExpiresAt == null ||
-            accessTokenExpiresAt.isAfter(Instant.now(clock).plus(1, ChronoUnit.MINUTES))) {
+        if (
+            accessTokenExpiresAt == null ||
+                accessTokenExpiresAt.isAfter(Instant.now(clock).plus(1, ChronoUnit.MINUTES))
+        ) {
           return false
         }
 
@@ -552,7 +557,8 @@ internal constructor(
         } catch (e: HttpError) {
           if (e.statusCode in listOf(401, 403)) {
             logging.warn(
-                "NativeSDK: Token refresh failed with status ${e.statusCode}, clearing session")
+                "NativeSDK: Token refresh failed with status ${e.statusCode}, clearing session"
+            )
             session.clear()
             return false
           }
@@ -574,29 +580,40 @@ internal constructor(
  * A header field name that must start with the `x-sty-` prefix.
  *
  * Headers using this convention are appended to every network request towards the Strivacity
- * server. Because of the `x-sty-` prefix they are forwarded to and available in server-side
- * event Hooks on the backend.
+ * server. Because of the `x-sty-` prefix they are forwarded to and available in server-side event
+ * Hooks on the backend.
  */
 typealias CustomHeaderFieldName = String
 
 /**
  * Static configuration for the network communication layer of the SDK.
  *
- * @property userAgent The User-Agent header value sent with every network request.
- *   Defaults to `"strivacity-sdk-android"`.
- * @property customRequestHeaders Additional HTTP headers included in every network request.
- *   Every key must be a [CustomHeaderFieldName], i.e. it must start with the `x-sty-` prefix —
- *   this is enforced at construction time and an [IllegalArgumentException] is thrown otherwise.
- *   Headers with the `x-sty-` prefix are available in server-side event Hooks on the backend.
- *   Defaults to an empty map.
+ * @property userAgent The User-Agent header value sent with every network request. Defaults to
+ *   `"strivacity-sdk-android"`.
+ * @property customRequestHeaders Additional HTTP headers included in every network request. Every
+ *   key must be a [CustomHeaderFieldName], i.e. it must start with the `x-sty-` prefix — this is
+ *   enforced at construction time and an [IllegalArgumentException] is thrown otherwise. Headers
+ *   with the `x-sty-` prefix are available in server-side event Hooks on the backend. Defaults to
+ *   an empty map.
  */
 data class NetworkConfiguration(
-  val userAgent: String = "strivacity-sdk-android",
-  val customRequestHeaders: Map<CustomHeaderFieldName, String> = emptyMap()
+    val userAgent: String = "strivacity-sdk-android",
+    val customRequestHeaders: Map<CustomHeaderFieldName, String> = emptyMap(),
 ) {
+
   init {
+    require(userAgent.trim().count() >= 3) { "User agent must be longer than 3 characters" }
+
+    require(customRequestHeaders.keys.all { key -> key.lowercase() == key }) {
+      "Custom request headers must be defined with lowercase. eg. `x-sty-my-header`"
+    }
+
     require(customRequestHeaders.all { kv -> kv.key.startsWith("x-sty-") }) {
       "Custom request headers must start with `x-sty-` prefix."
+    }
+
+    require(customRequestHeaders.keys.none { key -> key.trim() == "x-sty-" }) {
+      "Cannot add \"x-sty-\" header as it is a reserved header prefix."
     }
   }
 }
@@ -606,9 +623,15 @@ data class NetworkConfiguration(
  * the current [SDKVersion]. Useful for correlating server-side Hook events with a specific SDK
  * release.
  */
-fun NetworkConfiguration.addSdkVersionCustomHeader(): NetworkConfiguration =
-  this.copy(customRequestHeaders = customRequestHeaders + ("x-sty-sdk-version" to BuildConfig.STRIVACITY_SDK_VERSION))
-
+fun NetworkConfiguration.addSdkVersionCustomHeader(): NetworkConfiguration {
+  if (customRequestHeaders.containsKey("x-sty-sdk-version")) {
+    return this
+  }
+  return this.copy(
+      customRequestHeaders =
+          customRequestHeaders + ("x-sty-sdk-version" to BuildConfig.STRIVACITY_SDK_VERSION)
+  )
+}
 
 data class LoginParameters(
     val prompt: String? = null,

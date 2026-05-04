@@ -54,6 +54,7 @@ import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -1082,6 +1083,199 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
     }
     val screen = json.decodeFromString<Screen>(fakeInitResponsePayload)
     assertNotNull(screen)
+  }
+}
+
+internal class NetworkConfigurationTest : NativeSDKTestBase() {
+
+  @Test
+  fun defaultNetworkConfiguration_shouldUseDefaultUserAgentAndNoXStyHeaders() = runTest {
+    lateinit var capturedHeaders: Headers
+
+    val sdk =
+        sdkBuilder
+            .apply { scheduler = testScheduler }
+            .http(
+                captureHeaders(MockRequestHandleScope::respondFlowRedirect) { headers ->
+                  capturedHeaders = headers
+                }
+            )
+            .http(MockRequestHandleScope::respondInit200)
+            .build()
+
+    sdk.login(onSuccess = {}, onError = {}, fallbackHandler = {}, loginParameters = null)
+
+    assertEquals("strivacity-sdk-android", capturedHeaders[HttpHeaders.UserAgent])
+    assertTrue(
+        "No x-sty- prefixed headers should be present by default",
+        capturedHeaders.names().none { it.startsWith("x-sty-", ignoreCase = true) },
+    )
+  }
+
+  @Test
+  fun customUserAgent_shouldAppearExactlyInUserAgentHeader() = runTest {
+    lateinit var capturedHeaders: Headers
+
+    val sdk =
+        sdkBuilder
+            .apply {
+              scheduler = testScheduler
+              networkConfiguration = NetworkConfiguration(userAgent = "my-custom-agent")
+            }
+            .http(
+                captureHeaders(MockRequestHandleScope::respondFlowRedirect) { headers ->
+                  capturedHeaders = headers
+                }
+            )
+            .http(MockRequestHandleScope::respondInit200)
+            .build()
+
+    sdk.login(onSuccess = {}, onError = {}, fallbackHandler = {}, loginParameters = null)
+
+    assertEquals("my-custom-agent", capturedHeaders[HttpHeaders.UserAgent])
+  }
+
+  @Test
+  fun twoCustomRequestHeaders_shouldBothAppearInRequest() = runTest {
+    lateinit var capturedHeaders: Headers
+
+    val sdk =
+        sdkBuilder
+            .apply {
+              scheduler = testScheduler
+              networkConfiguration =
+                  NetworkConfiguration(
+                      customRequestHeaders = mapOf("x-sty-foo" to "bar", "x-sty-baz" to "qux")
+                  )
+            }
+            .http(
+                captureHeaders(MockRequestHandleScope::respondFlowRedirect) { headers ->
+                  capturedHeaders = headers
+                }
+            )
+            .http(MockRequestHandleScope::respondInit200)
+            .build()
+
+    sdk.login(onSuccess = {}, onError = {}, fallbackHandler = {}, loginParameters = null)
+
+    assertEquals("bar", capturedHeaders["x-sty-foo"])
+    assertEquals("qux", capturedHeaders["x-sty-baz"])
+  }
+
+  @Test
+  fun customRequestHeaderWithoutXStyPrefix_shouldThrowIllegalArgumentException() {
+    assertThrows(IllegalArgumentException::class.java) {
+      NetworkConfiguration(customRequestHeaders = mapOf("invalid-key" to "value"))
+    }
+  }
+
+  @Test
+  fun addSdkVersionCustomHeader_shouldAddXStySdkVersionHeader() = runTest {
+    lateinit var capturedHeaders: Headers
+
+    val sdk =
+        sdkBuilder
+            .apply {
+              scheduler = testScheduler
+              networkConfiguration = NetworkConfiguration().addSdkVersionCustomHeader()
+            }
+            .http(
+                captureHeaders(MockRequestHandleScope::respondFlowRedirect) { headers ->
+                  capturedHeaders = headers
+                }
+            )
+            .http(MockRequestHandleScope::respondInit200)
+            .build()
+
+    sdk.login(onSuccess = {}, onError = {}, fallbackHandler = {}, loginParameters = null)
+
+    assertEquals(
+        BuildConfig.STRIVACITY_SDK_VERSION,
+        capturedHeaders["x-sty-sdk-version"],
+    )
+  }
+
+  @Test
+  fun addSdkVersionCustomHeader_shouldRetainAlreadyDefinedCustomRequestHeaders() = runTest {
+    lateinit var capturedHeaders: Headers
+
+    val sdk =
+        sdkBuilder
+            .apply {
+              scheduler = testScheduler
+              networkConfiguration =
+                  NetworkConfiguration(customRequestHeaders = mapOf("x-sty-existing" to "v1"))
+                      .addSdkVersionCustomHeader()
+            }
+            .http(
+                captureHeaders(MockRequestHandleScope::respondFlowRedirect) { headers ->
+                  capturedHeaders = headers
+                }
+            )
+            .http(MockRequestHandleScope::respondInit200)
+            .build()
+
+    sdk.login(onSuccess = {}, onError = {}, fallbackHandler = {}, loginParameters = null)
+
+    assertEquals("v1", capturedHeaders["x-sty-existing"])
+    assertEquals(BuildConfig.STRIVACITY_SDK_VERSION, capturedHeaders["x-sty-sdk-version"])
+  }
+
+  @Test
+  fun addSdkVersionCustomHeader_calledTwice_shouldThrow() {
+    val config1 = NetworkConfiguration().addSdkVersionCustomHeader()
+    val config2 = config1.addSdkVersionCustomHeader()
+    assertSame(config1, config2)
+  }
+
+  @Test
+  fun customRequestHeader_withUppercase_shouldThrowIllegalArgumentException() {
+    assertThrows(IllegalArgumentException::class.java) {
+      NetworkConfiguration(customRequestHeaders = mapOf("X-STY-FOO" to "value2"))
+    }
+  }
+
+  @Test
+  fun customRequestHeader_withKeyEqualToPrefixOnly_shouldThrowIllegalArgumentException() {
+    assertThrows(IllegalArgumentException::class.java) {
+      NetworkConfiguration(customRequestHeaders = mapOf("x-sty-" to "value"))
+    }
+  }
+
+  @Test
+  fun customRequestHeaderValue_withSpacesAndSpecialChars_shouldBeSentVerbatim() = runTest {
+    lateinit var capturedHeaders: Headers
+
+    val verbatimValue = "value with spaces & special=chars! \uD83D\uDE0A"
+
+    val sdk =
+        sdkBuilder
+            .apply {
+              scheduler = testScheduler
+              networkConfiguration =
+                  NetworkConfiguration(customRequestHeaders = mapOf("x-sty-meta" to verbatimValue))
+            }
+            .http(
+                captureHeaders(MockRequestHandleScope::respondFlowRedirect) { headers ->
+                  capturedHeaders = headers
+                }
+            )
+            .http(MockRequestHandleScope::respondInit200)
+            .build()
+
+    sdk.login(onSuccess = {}, onError = {}, fallbackHandler = {}, loginParameters = null)
+
+    assertEquals(verbatimValue, capturedHeaders["x-sty-meta"])
+  }
+
+  @Test
+  fun userAgent_blank_shouldThrowIllegalArgumentException() {
+    assertThrows(IllegalArgumentException::class.java) { NetworkConfiguration(userAgent = "") }
+  }
+
+  @Test
+  fun userAgent_shorterThanThreeCharsAfterTrimming_shouldThrowIllegalArgumentException() {
+    assertThrows(IllegalArgumentException::class.java) { NetworkConfiguration(userAgent = " ab ") }
   }
 }
 
