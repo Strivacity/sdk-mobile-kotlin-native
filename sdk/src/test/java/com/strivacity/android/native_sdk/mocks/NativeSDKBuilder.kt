@@ -32,6 +32,7 @@ internal class NativeSDKBuilder {
   var oidcHandlerService: OIDCHandlerService? = null
   var session: Session? = null
   var logging: Logging? = null
+  var networkConfiguration: NetworkConfiguration = NetworkConfiguration()
 
   private val httpHandlers: MutableList<ChainedMockRequestHandler> = mutableListOf()
 
@@ -60,7 +61,7 @@ internal class NativeSDKBuilder {
       httpService =
           HttpService(
               logging = logging,
-              networkConfiguration = NetworkConfiguration(),
+              networkConfiguration = networkConfiguration,
               MockEngine(engineConfig),
           )
     } else {
@@ -68,7 +69,7 @@ internal class NativeSDKBuilder {
           this.httpService
               ?: HttpService(
                   logging = logging,
-                  networkConfiguration = NetworkConfiguration(),
+                  networkConfiguration = networkConfiguration,
               )
     }
     val sdk =

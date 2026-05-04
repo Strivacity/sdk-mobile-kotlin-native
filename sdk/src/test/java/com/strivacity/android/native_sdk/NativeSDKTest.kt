@@ -74,8 +74,8 @@ internal abstract class NativeSDKTestBase {
   protected lateinit var testClock: MutableTestClock
   protected lateinit var testSession: Session
   protected lateinit var testStorage: TestStorage
-
   protected lateinit var testLogging: Logging
+  protected lateinit var testNetworkConfiguration: NetworkConfiguration
 
   @Before
   fun setUp() {
@@ -83,11 +83,13 @@ internal abstract class NativeSDKTestBase {
     testLogging = spy(FakeLogging())
     testSession = spy(Session(testStorage, testLogging))
     testClock = MutableTestClock()
+    testNetworkConfiguration = NetworkConfiguration()
     sdkBuilder = NativeSDKBuilder {
       this.storage = testStorage
       this.session = testSession
       this.clock = testClock
       this.logging = testLogging
+      this.networkConfiguration = testNetworkConfiguration
     }
   }
 }
