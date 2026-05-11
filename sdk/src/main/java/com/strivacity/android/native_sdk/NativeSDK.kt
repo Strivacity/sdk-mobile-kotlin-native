@@ -125,11 +125,11 @@ internal constructor(
                       parameters.append("login_hint", hint)
                     }
                     it.acrValue?.let { acr ->
-                      logging.debug("NativeSDK: ACR value: ${loginParameters.acrValue}")
+                      logging.debug("NativeSDK: ACR value: $acr")
                       parameters.append("acr_values", acr)
                     }
                     it.prompt?.let { prompt ->
-                      logging.debug("NativeSDK: Prompt: ${loginParameters.prompt}")
+                      logging.debug("NativeSDK: Prompt: $prompt")
                       parameters.append("prompt", prompt)
                     }
                     it.audiences
@@ -137,7 +137,7 @@ internal constructor(
                         ?.takeIf { audiences -> audiences.isNotEmpty() }
                         ?.let { audiences ->
                           logging.debug("NativeSDK: Audiences: $audiences")
-                          parameters.append("audience", audiences.joinToString(" "))
+                          parameters.appendAll("audience", audiences)
                         }
                   }
                 }
