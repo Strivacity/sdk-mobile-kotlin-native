@@ -27,12 +27,12 @@ import io.ktor.http.protocolWithAuthority
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-import java.util.Locale
 
 internal class HttpService(
     private val logging: Logging,
     private val networkConfiguration: NetworkConfiguration,
     clientEngine: HttpClientEngine = Android.create(),
+    private var languageTag: String,
 ) {
   private val client =
       HttpClient(clientEngine) {
@@ -56,7 +56,10 @@ internal class HttpService(
       url: Url,
       acceptHeader: ContentType = ContentType.Application.Json,
   ): HttpResponse {
-    return client.get(url) { accept(acceptHeader) }
+    return client.get(url) {
+      accept(acceptHeader)
+      headers["Accept-Language"] = languageTag
+    }
   }
 
   suspend fun post(
@@ -71,8 +74,7 @@ internal class HttpService(
       setBody(body)
       headers.apply {
         append("Authorization", "Bearer $session")
-        // TODO: this could be configured by integrator
-        append("Accept-Language", Locale.getDefault().language)
+        headers["Accept-Language"] = languageTag
       }
     }
   }
@@ -82,7 +84,14 @@ internal class HttpService(
       body: Parameters,
       acceptHeader: ContentType = ContentType.Application.Json,
   ): HttpResponse {
-    return client.submitForm(url = url, formParameters = body) { accept(acceptHeader) }
+    return client.submitForm(url = url, formParameters = body) {
+      accept(acceptHeader)
+      headers["Accept-Language"] = languageTag
+    }
+  }
+
+  fun setAcceptLanguageHeader(languageTag: String) {
+    this.languageTag = languageTag
   }
 }
 

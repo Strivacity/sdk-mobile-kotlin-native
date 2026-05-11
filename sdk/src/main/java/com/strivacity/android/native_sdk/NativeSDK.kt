@@ -26,23 +26,28 @@ import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 class NativeSDK
 internal constructor(
-    private val issuer: String,
-    private val clientId: String,
-    private val redirectURI: String,
-    private val postLogoutURI: String,
-    val session: Session,
-    private val mode: SdkMode = SdkMode.Android,
-    private val dispatchers: SDKDispatchers = DefaultSDKDispatchers,
-    private val clock: Clock = Clock.systemUTC(),
-    private val logging: Logging = DefaultLogging(),
-    private val networkConfiguration: NetworkConfiguration = NetworkConfiguration(),
-    private val httpService: HttpService =
-        HttpService(logging = logging, networkConfiguration = networkConfiguration),
-    private val oidcHandlerService: OIDCHandlerService =
-        OIDCHandlerService(httpService = httpService, logging = logging),
+  private val issuer: String,
+  private val clientId: String,
+  private val redirectURI: String,
+  private val postLogoutURI: String,
+  val session: Session,
+  private val mode: SdkMode = SdkMode.Android,
+  private val dispatchers: SDKDispatchers = DefaultSDKDispatchers,
+  private val clock: Clock = Clock.systemUTC(),
+  private val logging: Logging = DefaultLogging(),
+  private val networkConfiguration: NetworkConfiguration = NetworkConfiguration(),
+  private val httpService: HttpService =
+    HttpService(
+      logging = logging,
+      networkConfiguration = networkConfiguration,
+      languageTag = Locale.getDefault().toLanguageTag()
+    ),
+  private val oidcHandlerService: OIDCHandlerService =
+    OIDCHandlerService(httpService = httpService, logging = logging),
 ) {
 
   constructor(
@@ -154,6 +159,12 @@ internal constructor(
           if (sessionId == null) {
             continueFlow(oidcParams, parameters)
             return@withContext
+          }
+
+          parameters["language"]?.let { languageTag ->
+            httpService.setAcceptLanguageHeader(
+              languageTag
+            )
           }
 
           val loginHandlerService = LoginHandlerService(httpService, issuer, sessionId)
