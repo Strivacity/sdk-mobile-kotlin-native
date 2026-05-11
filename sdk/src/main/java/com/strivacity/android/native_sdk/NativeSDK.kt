@@ -139,6 +139,10 @@ internal constructor(
                           logging.debug("NativeSDK: Audiences: $audiences")
                           parameters.appendAll("audience", audiences)
                         }
+                    it.uiLocales?.let { locales ->
+                      logging.debug("NativeSDK: Prompt: $locales")
+                      parameters.appendAll(name = "ui_locales", locales)
+                    }
                   }
                 }
                 .build()
@@ -639,11 +643,16 @@ fun NetworkConfiguration.addSdkVersionCustomHeader(): NetworkConfiguration {
 }
 
 data class LoginParameters(
-    val prompt: String? = null,
-    val loginHint: String? = null,
-    val acrValue: String? = null,
-    val scopes: List<String>? = null,
-    val audiences: List<String>? = null,
+  val prompt: String? = null,
+  val loginHint: String? = null,
+  val acrValue: String? = null,
+  val scopes: List<String>? = null,
+  val audiences: List<String>? = null,
+  /**
+     * UI Language preference as per https://docs.strivacity.com/docs/translations
+     * List of BCP47 [RFC5646] language tag values
+     */
+    val uiLocales: List<String>? = null,
 )
 
 enum class SdkMode(val value: String) {
