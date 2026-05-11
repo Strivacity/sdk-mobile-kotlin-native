@@ -287,6 +287,12 @@ internal constructor(
         return@withContext
       }
 
+      parameters["language"]?.let { languageTag ->
+        httpService.setAcceptLanguageHeader(
+          languageTag
+        )
+      }
+
       val loginHandlerService = LoginHandlerService(httpService, issuer, sessionId)
       val oidcParams = OidcParams(onSuccess, onError)
       val loginController =
