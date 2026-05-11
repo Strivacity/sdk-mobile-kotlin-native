@@ -646,8 +646,8 @@ data class NetworkConfiguration(
 
 /**
  * Returns a copy of this [NetworkConfiguration] with the `x-sty-sdk-version` custom header set to
- * the current [SDKVersion]. Useful for correlating server-side Hook events with a specific SDK
- * release.
+ * the current [BuildConfig.SDKVersion]. Useful for correlating server-side Hook events with a
+ * specific SDK release.
  */
 fun NetworkConfiguration.addSdkVersionCustomHeader(): NetworkConfiguration {
   if (customRequestHeaders.containsKey("x-sty-sdk-version")) {
@@ -667,7 +667,7 @@ data class LoginParameters(
   val audiences: List<String>? = null,
   /**
      * UI Language preference as per https://docs.strivacity.com/docs/translations
-     * List of BCP47 [RFC5646] language tag values
+     * List of BCP47 `RFC5646` language tag values
      */
     val uiLocales: List<String>? = null,
 )
