@@ -138,16 +138,25 @@ internal constructor(
                       parameters.append("prompt", prompt)
                     }
                     it.audiences
-                        ?.filter { aud -> aud.isNotBlank() }
-                        ?.takeIf { audiences -> audiences.isNotEmpty() }
-                        ?.let { audiences ->
-                          logging.debug("NativeSDK: Audiences: $audiences")
-                          parameters.appendAll("audience", audiences)
-                        }
-                    it.uiLocales?.let { locales ->
-                      logging.debug("NativeSDK: Prompt: $locales")
-                      parameters.appendAll(name = "ui_locales", locales)
-                    }
+                      ?.filter { aud -> aud.isNotBlank() }
+                      ?.takeIf { audiences -> audiences.isNotEmpty() }
+                      ?.let { audiences ->
+                        logging.debug("NativeSDK: Audiences: $audiences")
+                        parameters.append(
+                          "audience",
+                          audiences.joinToString(separator = " ")
+                        )
+                      }
+                    it.uiLocales
+                      ?.filter { locale -> locale.isNotBlank() }
+                      ?.takeIf { locales -> locales.isNotEmpty() }
+                      ?.let { locales ->
+                        logging.debug("NativeSDK: UiLocales: $locales")
+                        parameters.append(
+                          "ui_locales",
+                          locales.joinToString(separator = " ")
+                        )
+                      }
                   }
                 }
                 .build()

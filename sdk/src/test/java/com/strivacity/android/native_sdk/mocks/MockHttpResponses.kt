@@ -17,6 +17,19 @@ fun MockRequestHandleScope.respondFlowRedirect(request: HttpRequestData): HttpRe
       when {
         startsWith("/oauth2/auth") ->
             respond(
+                "test-scheme://my-test-app/redirUrl?session_id=test-session-id&language=en-GB",
+                HttpStatusCode.OK,
+            )
+
+        else -> null
+      }
+    }
+
+fun MockRequestHandleScope.respondFlowRedirectWithoutLanguage(request: HttpRequestData): HttpResponseData? =
+    with(request.url.encodedPath) {
+      when {
+        startsWith("/oauth2/auth") ->
+            respond(
                 "test-scheme://my-test-app/redirUrl?session_id=test-session-id",
                 HttpStatusCode.OK,
             )
@@ -138,6 +151,21 @@ fun MockRequestHandleScope.respondInit200(
     }
 
 fun MockRequestHandleScope.respondEntryWithRedirectBody(
+    request: HttpRequestData,
+): HttpResponseData? =
+    with(request.url.encodedPath) {
+      when {
+        startsWith("/provider/flow/entry") -> {
+          respond(
+              "android://native-flow?session_id=c45f0b69-9e1e-42db-8419-125ad8885d9a&language=en-GB",
+              HttpStatusCode.OK,
+          )
+        }
+        else -> null
+      }
+    }
+
+fun MockRequestHandleScope.respondEntryWithRedirectBodyWithoutLanguage(
     request: HttpRequestData,
 ): HttpResponseData? =
     with(request.url.encodedPath) {
