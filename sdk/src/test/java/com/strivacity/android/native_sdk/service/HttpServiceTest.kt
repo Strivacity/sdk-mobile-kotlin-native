@@ -27,6 +27,7 @@ class HttpServiceTest {
               capturedHeaders.add(request.headers.toMap())
               respond("", HttpStatusCode.OK)
             },
+          languageTag = "en-US"
         )
 
     runBlocking { service.get(Url("https://localhost/test")) }
@@ -49,6 +50,7 @@ class HttpServiceTest {
               capturedHeaders.add(request.headers.toMap())
               respond("", HttpStatusCode.OK)
             },
+            languageTag = "en-US"
         )
 
     runBlocking { service.get(Url("https://localhost/test")) }

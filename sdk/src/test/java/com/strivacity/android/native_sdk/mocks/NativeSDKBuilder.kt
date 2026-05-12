@@ -63,6 +63,7 @@ internal class NativeSDKBuilder {
               logging = logging,
               networkConfiguration = networkConfiguration,
               MockEngine(engineConfig),
+              languageTag = "en-US",
           )
     } else {
       httpService =
@@ -70,6 +71,7 @@ internal class NativeSDKBuilder {
               ?: HttpService(
                   logging = logging,
                   networkConfiguration = networkConfiguration,
+                  languageTag = "en-US",
               )
     }
     val sdk =

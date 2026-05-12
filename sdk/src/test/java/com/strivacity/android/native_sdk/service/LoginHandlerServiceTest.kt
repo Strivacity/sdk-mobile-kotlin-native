@@ -23,6 +23,7 @@ class LoginHandlerServiceTest {
             logging = FakeLogging(),
             networkConfiguration = NetworkConfiguration(),
             MockEngine { respond("", HttpStatusCode.Forbidden) },
+            languageTag = "en-US",
         )
     val handlerService = LoginHandlerService(service, "https://localhost/", "test-session-id")
 
@@ -36,6 +37,7 @@ class LoginHandlerServiceTest {
             logging = FakeLogging(),
             networkConfiguration = NetworkConfiguration(),
             MockEngine { respond("", HttpStatusCode.InternalServerError) },
+            languageTag = "en-US",
         )
     val handlerService = LoginHandlerService(service, "https://localhost/", "test-session-id")
     assertThrows(HttpError::class.java) { runBlocking { handlerService.initCall() } }
@@ -54,6 +56,7 @@ class LoginHandlerServiceTest {
                   headers { set(HttpHeaders.ContentType, "application/json") },
               )
             },
+            languageTag = "en-US",
         )
     val handlerService = LoginHandlerService(service, "https://localhost/", "test-session-id")
     val screen = handlerService.submitForm("test-form-id", body = mapOf())
@@ -71,6 +74,7 @@ class LoginHandlerServiceTest {
                   HttpStatusCode.Forbidden,
               )
             },
+            languageTag = "en-US",
         )
     val handlerService = LoginHandlerService(service, "https://localhost/", "test-session-id")
     assertThrows(SessionExpiredError::class.java) {
@@ -90,6 +94,7 @@ class LoginHandlerServiceTest {
                   HttpStatusCode.InternalServerError,
               )
             },
+            languageTag = "en-US",
         )
     val handlerService = LoginHandlerService(service, "https://localhost/", "test-session-id")
     assertThrows(HttpError::class.java) {

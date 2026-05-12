@@ -26,23 +26,28 @@ import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 class NativeSDK
 internal constructor(
-    private val issuer: String,
-    private val clientId: String,
-    private val redirectURI: String,
-    private val postLogoutURI: String,
-    val session: Session,
-    private val mode: SdkMode = SdkMode.Android,
-    private val dispatchers: SDKDispatchers = DefaultSDKDispatchers,
-    private val clock: Clock = Clock.systemUTC(),
-    private val logging: Logging = DefaultLogging(),
-    private val networkConfiguration: NetworkConfiguration = NetworkConfiguration(),
-    private val httpService: HttpService =
-        HttpService(logging = logging, networkConfiguration = networkConfiguration),
-    private val oidcHandlerService: OIDCHandlerService =
-        OIDCHandlerService(httpService = httpService, logging = logging),
+  private val issuer: String,
+  private val clientId: String,
+  private val redirectURI: String,
+  private val postLogoutURI: String,
+  val session: Session,
+  private val mode: SdkMode = SdkMode.Android,
+  private val dispatchers: SDKDispatchers = DefaultSDKDispatchers,
+  private val clock: Clock = Clock.systemUTC(),
+  private val logging: Logging = DefaultLogging(),
+  private val networkConfiguration: NetworkConfiguration = NetworkConfiguration(),
+  private val httpService: HttpService =
+    HttpService(
+      logging = logging,
+      networkConfiguration = networkConfiguration,
+      languageTag = Locale.getDefault().toLanguageTag()
+    ),
+  private val oidcHandlerService: OIDCHandlerService =
+    OIDCHandlerService(httpService = httpService, logging = logging),
 ) {
 
   constructor(
@@ -125,20 +130,33 @@ internal constructor(
                       parameters.append("login_hint", hint)
                     }
                     it.acrValue?.let { acr ->
-                      logging.debug("NativeSDK: ACR value: ${loginParameters.acrValue}")
+                      logging.debug("NativeSDK: ACR value: $acr")
                       parameters.append("acr_values", acr)
                     }
                     it.prompt?.let { prompt ->
-                      logging.debug("NativeSDK: Prompt: ${loginParameters.prompt}")
+                      logging.debug("NativeSDK: Prompt: $prompt")
                       parameters.append("prompt", prompt)
                     }
                     it.audiences
-                        ?.filter { aud -> aud.isNotBlank() }
-                        ?.takeIf { audiences -> audiences.isNotEmpty() }
-                        ?.let { audiences ->
-                          logging.debug("NativeSDK: Audiences: $audiences")
-                          parameters.append("audience", audiences.joinToString(" "))
-                        }
+                      ?.filter { aud -> aud.isNotBlank() }
+                      ?.takeIf { audiences -> audiences.isNotEmpty() }
+                      ?.let { audiences ->
+                        logging.debug("NativeSDK: Audiences: $audiences")
+                        parameters.append(
+                          "audience",
+                          audiences.joinToString(separator = " ")
+                        )
+                      }
+                    it.uiLocales
+                      ?.filter { locale -> locale.isNotBlank() }
+                      ?.takeIf { locales -> locales.isNotEmpty() }
+                      ?.let { locales ->
+                        logging.debug("NativeSDK: UiLocales: $locales")
+                        parameters.append(
+                          "ui_locales",
+                          locales.joinToString(separator = " ")
+                        )
+                      }
                   }
                 }
                 .build()
@@ -150,6 +168,12 @@ internal constructor(
           if (sessionId == null) {
             continueFlow(oidcParams, parameters)
             return@withContext
+          }
+
+          parameters["language"]?.let { languageTag ->
+            httpService.setAcceptLanguageHeader(
+              languageTag
+            )
           }
 
           val loginHandlerService = LoginHandlerService(httpService, issuer, sessionId)
@@ -270,6 +294,12 @@ internal constructor(
             UnknownError(RuntimeException("Failed to start session: session_id missing or blank"))
         )
         return@withContext
+      }
+
+      parameters["language"]?.let { languageTag ->
+        httpService.setAcceptLanguageHeader(
+          languageTag
+        )
       }
 
       val loginHandlerService = LoginHandlerService(httpService, issuer, sessionId)
@@ -625,8 +655,8 @@ data class NetworkConfiguration(
 
 /**
  * Returns a copy of this [NetworkConfiguration] with the `x-sty-sdk-version` custom header set to
- * the current [SDKVersion]. Useful for correlating server-side Hook events with a specific SDK
- * release.
+ * the current [BuildConfig.SDKVersion]. Useful for correlating server-side Hook events with a
+ * specific SDK release.
  */
 fun NetworkConfiguration.addSdkVersionCustomHeader(): NetworkConfiguration {
   if (customRequestHeaders.containsKey("x-sty-sdk-version")) {
@@ -639,11 +669,16 @@ fun NetworkConfiguration.addSdkVersionCustomHeader(): NetworkConfiguration {
 }
 
 data class LoginParameters(
-    val prompt: String? = null,
-    val loginHint: String? = null,
-    val acrValue: String? = null,
-    val scopes: List<String>? = null,
-    val audiences: List<String>? = null,
+  val prompt: String? = null,
+  val loginHint: String? = null,
+  val acrValue: String? = null,
+  val scopes: List<String>? = null,
+  val audiences: List<String>? = null,
+  /**
+     * UI Language preference as per https://docs.strivacity.com/docs/translations
+     * List of BCP47 `RFC5646` language tag values
+     */
+    val uiLocales: List<String>? = null,
 )
 
 enum class SdkMode(val value: String) {

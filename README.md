@@ -239,6 +239,7 @@ data class LoginParameters(
     val loginHint: String? = null,          // sets the corresponding parameter in the OAuth2 authorize call
     val acrValue: String? = null,           // sets the corresponding parameter in the OAuth2 authorize call
     val scopes: List<String>? = null        // sets the corresponding parameter in the OAuth2 authorize call
+    val uiLocales: List<String>? = null     // sets the corresponding parameter in the OAuth2 authorize call
 )
 ```
 

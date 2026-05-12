@@ -14,8 +14,10 @@ import com.strivacity.android.native_sdk.mocks.fakeInitResponsePayload
 import com.strivacity.android.native_sdk.mocks.missingAccessToken
 import com.strivacity.android.native_sdk.mocks.respondEntry400
 import com.strivacity.android.native_sdk.mocks.respondEntryWithRedirectBody
+import com.strivacity.android.native_sdk.mocks.respondEntryWithRedirectBodyWithoutLanguage
 import com.strivacity.android.native_sdk.mocks.respondFlowOAuthError
 import com.strivacity.android.native_sdk.mocks.respondFlowRedirect
+import com.strivacity.android.native_sdk.mocks.respondFlowRedirectWithoutLanguage
 import com.strivacity.android.native_sdk.mocks.respondInit200
 import com.strivacity.android.native_sdk.mocks.respondPostLoginRedirect
 import com.strivacity.android.native_sdk.mocks.respondTokenExchange200
@@ -329,6 +331,7 @@ internal class NativeSDKTest : NativeSDKTestBase() {
             logging = testLogging,
             networkConfiguration = NetworkConfiguration(),
             MockEngine { throw AssertionError("Test should never invoke HttpClient") },
+            languageTag = "en-US",
         )
     val sdk =
         sdkBuilder
@@ -446,6 +449,7 @@ internal class NativeSDKLogout : NativeSDKTestBase() {
             logging = testLogging,
             networkConfiguration = NetworkConfiguration(),
             mockEngine,
+            languageTag = "en-US",
         )
     val oidcHandlerService = spy(OIDCHandlerService(httpService, logging = testLogging))
     val sdk =
@@ -731,6 +735,106 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
     )
 
     assertNull(requestParams["audience"])
+  }
+
+  @Test
+  fun login_shouldRespectUiLocalesParam() = runTest {
+    lateinit var requestParams: Parameters
+    val sdk =
+        sdkBuilder
+            .apply { scheduler = testScheduler }
+            .http(
+                captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
+                  requestParams = params
+                }
+            )
+            .http(MockRequestHandleScope::respondInit200)
+            .build()
+
+    val testFallbackHandler: FallbackHandler = { uri -> run { println(uri) } }
+    sdk.login(
+        onSuccess = {},
+        onError = {},
+        fallbackHandler = testFallbackHandler,
+        loginParameters = LoginParameters(uiLocales = listOf("hu-HU", "de-AT")),
+    )
+
+    assertEquals("hu-HU de-AT", requestParams["ui_locales"])
+  }
+
+  @Test
+  fun login_shouldIgnoreUiLocalesParams_whenTheyAreBlank() = runTest {
+    lateinit var requestParams: Parameters
+    val sdk =
+        sdkBuilder
+            .apply { scheduler = testScheduler }
+            .http(
+                captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
+                  requestParams = params
+                }
+            )
+            .http(MockRequestHandleScope::respondInit200)
+            .build()
+
+    val testFallbackHandler: FallbackHandler = { uri -> run { println(uri) } }
+    sdk.login(
+        onSuccess = {},
+        onError = {},
+        fallbackHandler = testFallbackHandler,
+        loginParameters = LoginParameters(uiLocales = listOf("", " ")),
+    )
+
+    assertNull(requestParams["ui_locales"])
+  }
+
+  @Test
+  fun login_shouldIgnoreNullUiLocalesParams() = runTest {
+    lateinit var requestParams: Parameters
+    val sdk =
+        sdkBuilder
+            .apply { scheduler = testScheduler }
+            .http(
+                captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
+                  requestParams = params
+                }
+            )
+            .http(MockRequestHandleScope::respondInit200)
+            .build()
+
+    val testFallbackHandler: FallbackHandler = { uri -> run { println(uri) } }
+    sdk.login(
+        onSuccess = {},
+        onError = {},
+        fallbackHandler = testFallbackHandler,
+        loginParameters = LoginParameters(uiLocales = null),
+    )
+
+    assertNull(requestParams["ui_locales"])
+  }
+
+  @Test
+  fun login_shouldIgnoreEmptyUiLocalesParam() = runTest {
+    lateinit var requestParams: Parameters
+    val sdk =
+        sdkBuilder
+            .apply { scheduler = testScheduler }
+            .http(
+                captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
+                  requestParams = params
+                }
+            )
+            .http(MockRequestHandleScope::respondInit200)
+            .build()
+
+    val testFallbackHandler: FallbackHandler = { uri -> run { println(uri) } }
+    sdk.login(
+        onSuccess = {},
+        onError = {},
+        fallbackHandler = testFallbackHandler,
+        loginParameters = LoginParameters(uiLocales = listOf()),
+    )
+
+    assertNull(requestParams["ui_locales"])
   }
 
   @Test
@@ -1280,6 +1384,57 @@ internal class NetworkConfigurationTest : NativeSDKTestBase() {
 }
 
 @RunWith(RobolectricTestRunner::class)
+internal class NativeSDKLanguageTagTest : NativeSDKTestBase() {
+
+  @Test
+  fun languageParam_present_setsAcceptLanguageOnSubsequentRequests() = runTest {
+    lateinit var initRequestHeaders: Headers
+
+    val sdk =
+        sdkBuilder
+            .apply { scheduler = testScheduler }
+            .http(MockRequestHandleScope::respondFlowRedirect)
+            .http(
+                captureHeaders(MockRequestHandleScope::respondInit200) { headers ->
+                  initRequestHeaders = headers
+                }
+            )
+            .build()
+
+    sdk.login(onSuccess = {}, onError = {}, fallbackHandler = {}, loginParameters = null)
+
+    assertEquals("en-GB", initRequestHeaders[HttpHeaders.AcceptLanguage])
+  }
+
+  @Test
+  fun languageParam_absent_noErrorAndPlatformDefaultIsUsed() = runTest {
+    lateinit var initRequestHeaders: Headers
+    var onErrorCalled = false
+
+    val sdk =
+        sdkBuilder
+            .apply { scheduler = testScheduler }
+            .http(MockRequestHandleScope::respondFlowRedirectWithoutLanguage)
+            .http(
+                captureHeaders(MockRequestHandleScope::respondInit200) { headers ->
+                  initRequestHeaders = headers
+                }
+            )
+            .build()
+
+    sdk.login(
+        onSuccess = {},
+        onError = { onErrorCalled = true },
+        fallbackHandler = {},
+        loginParameters = null,
+    )
+
+    assertFalse("No error should be triggered when language param is missing", onErrorCalled)
+    assertEquals("en-US", initRequestHeaders[HttpHeaders.AcceptLanguage])
+  }
+}
+
+@RunWith(RobolectricTestRunner::class)
 internal class NativeSDKEntryTest : NativeSDKTestBase() {
   @Test
   fun entry_shouldBuildDefaultParams() = runTest {
@@ -1390,5 +1545,61 @@ internal class NativeSDKEntryTest : NativeSDKTestBase() {
     )
     assertFalse(onSuccessCalled)
     assertTrue(onErrorCalled)
+  }
+
+  @Test
+  fun entry_languageParam_present_setsAcceptLanguageOnSubsequentRequests() = runTest {
+    lateinit var initRequestHeaders: Headers
+
+    val challenge: String = UUID.randomUUID().toString()
+
+    val sdk =
+        sdkBuilder
+            .apply { scheduler = testScheduler }
+            .http(MockRequestHandleScope::respondEntryWithRedirectBody)
+            .http(
+                captureHeaders(MockRequestHandleScope::respondInit200) { headers ->
+                  initRequestHeaders = headers
+                }
+            )
+            .build()
+
+    sdk.entry(
+        Uri.parse("test-scheme://my-test-app/entry?challenge=$challenge"),
+        fallbackHandler = {},
+        onSuccess = {},
+        onError = {},
+    )
+
+    assertEquals("en-GB", initRequestHeaders[HttpHeaders.AcceptLanguage])
+  }
+
+  @Test
+  fun entry_languageParam_absent_noErrorAndPlatformDefaultIsUsed() = runTest {
+    lateinit var initRequestHeaders: Headers
+    var onErrorCalled = false
+
+    val challenge: String = UUID.randomUUID().toString()
+
+    val sdk =
+        sdkBuilder
+            .apply { scheduler = testScheduler }
+            .http(MockRequestHandleScope::respondEntryWithRedirectBodyWithoutLanguage)
+            .http(
+                captureHeaders(MockRequestHandleScope::respondInit200) { headers ->
+                  initRequestHeaders = headers
+                }
+            )
+            .build()
+
+    sdk.entry(
+        Uri.parse("test-scheme://my-test-app/entry?challenge=$challenge"),
+        fallbackHandler = {},
+        onSuccess = {},
+        onError = { onErrorCalled = true },
+    )
+
+    assertFalse("No error should be triggered when language param is missing", onErrorCalled)
+    assertEquals("en-US", initRequestHeaders[HttpHeaders.AcceptLanguage])
   }
 }
