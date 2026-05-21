@@ -1,5 +1,6 @@
 package com.strivacity.android.headlessdemo.login
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,12 +21,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.strivacity.android.headlessdemo.ui.theme.StrivacityPrimary
 import com.strivacity.android.headlessdemo.ui.theme.StrivacitySecondary
 import com.strivacity.android.native_sdk.HeadlessAdapter
+import com.strivacity.android.native_sdk.PlatformError
 import com.strivacity.android.native_sdk.render.models.PasskeyLoginWidget
 import com.strivacity.android.native_sdk.render.models.Screen
 import com.strivacity.android.native_sdk.render.models.SubmitWidget
@@ -39,10 +42,14 @@ fun IdentificationView(screen: Screen, headlessAdapter: HeadlessAdapter) {
 
   var identifier by remember { mutableStateOf("") }
 
+  val context = LocalContext.current
+
   Column(
       horizontalAlignment = Alignment.CenterHorizontally,
       verticalArrangement = Arrangement.spacedBy(10.dp),
-      modifier = Modifier.fillMaxWidth().padding(35.dp)) {
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(35.dp)) {
         Text("Sign in", fontSize = 24.sp, fontWeight = FontWeight.W600)
 
         TextField(
@@ -67,9 +74,11 @@ fun IdentificationView(screen: Screen, headlessAdapter: HeadlessAdapter) {
               Text("Continue")
             }
 
-        Text("OR")
-
         val externalLogins = screen.forms?.filter { it.id.startsWith("externalLoginProvider") }
+        val passkeyForm = screen.forms?.firstOrNull { it.id == "passkey" }
+        if (externalLogins?.isNotEmpty() ?: false || passkeyForm != null) {
+          Text("OR")
+        }
         externalLogins?.forEach {
           it.let {
             Button(
@@ -80,6 +89,32 @@ fun IdentificationView(screen: Screen, headlessAdapter: HeadlessAdapter) {
                 onClick = { coroutineScope.launch { headlessAdapter.submit(it.id, mapOf()) } }) {
                   Text((it.widgets[0] as SubmitWidget).label)
                 }
+          }
+        }
+        passkeyForm?.let {
+          val widget = it.widgets.filterIsInstance<PasskeyLoginWidget>().first()
+          Button(
+            modifier = Modifier.fillMaxWidth(),
+            colors =
+              ButtonDefaults.buttonColors(
+                containerColor = StrivacitySecondary, contentColor = Color.Black
+              ),
+            onClick = {
+              coroutineScope.launch {
+                try {
+                  headlessAdapter.submit(it.id)
+                } catch (ex: Throwable) {
+                  when (ex) {
+                    is PlatformError -> {
+                      Toast.makeText(context, ex.cause?.message ?: "Unknown issue", Toast.LENGTH_SHORT).show()
+                    }
+                    else -> Toast.makeText(context, ex.message ?: "Unknown issue", Toast.LENGTH_SHORT).show()
+                  }
+                }
+              }
+            }
+          ) {
+            Text(widget.label)
           }
         }
 

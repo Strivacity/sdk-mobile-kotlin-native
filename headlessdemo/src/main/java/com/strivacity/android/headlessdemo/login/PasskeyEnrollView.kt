@@ -39,7 +39,7 @@ fun PasskeyEnrollView(
 
   val coroutineScope = rememberCoroutineScope()
 
-  var deviceName by remember {
+  var target by remember {
     mutableStateOf(
         screen.forms!!
             .first { it.id == "passkeyEnroll" }
@@ -61,8 +61,8 @@ fun PasskeyEnrollView(
     Text("When you are ready, create a passkey using the button below")
 
     TextField(
-        value = deviceName,
-        onValueChange = { deviceName = it },
+        value = target,
+        onValueChange = { target = it },
         label = { Text("Device name") },
         modifier = Modifier.fillMaxWidth(),
     )
@@ -78,7 +78,7 @@ fun PasskeyEnrollView(
         onClick = {
           coroutineScope.launch {
             try {
-              headlessAdapter.submit("passkeyEnroll", mapOf("deviceName" to deviceName))
+              headlessAdapter.submit("passkeyEnroll", mapOf("target" to target))
             } catch (ex: PlatformError) {
               Toast.makeText(context, ex.cause?.message ?: "Unknown issue", Toast.LENGTH_SHORT).show()
             } catch (ex: Throwable) {

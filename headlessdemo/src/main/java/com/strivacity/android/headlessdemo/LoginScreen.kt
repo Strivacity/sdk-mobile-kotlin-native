@@ -1,5 +1,6 @@
 package com.strivacity.android.headlessdemo
 
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -19,6 +20,7 @@ import com.strivacity.android.headlessdemo.login.MFAEnrollStartView
 import com.strivacity.android.headlessdemo.login.MFAEnrollTargetSelectView
 import com.strivacity.android.headlessdemo.login.MFAMethodView
 import com.strivacity.android.headlessdemo.login.MFAPasscode
+import com.strivacity.android.headlessdemo.login.PasskeyEnrollView
 import com.strivacity.android.headlessdemo.login.PasswordView
 import com.strivacity.android.headlessdemo.login.RegistrationView
 import com.strivacity.android.native_sdk.HeadlessAdapter
@@ -65,8 +67,9 @@ fun LoginScreen(nativeSDK: NativeSDK) {
           .show()
       showToast.set(false)
     }
-
-    when (screen!!.screen) {
+    val screenId = screen!!.screen
+    Log.d("LoginScreen", "Displaying screen: $screenId")
+    when (screenId) {
       "identification" -> {
         IdentificationView(screen!!, headlessAdapter)
       }
@@ -93,6 +96,9 @@ fun LoginScreen(nativeSDK: NativeSDK) {
       }
       "mfaPasscode" -> {
         MFAPasscode(screen!!, headlessAdapter)
+      }
+      "passkeyEnroll" -> {
+        PasskeyEnrollView(screen!!, headlessAdapter)
       }
       else -> {
         Text("Unknown screen")

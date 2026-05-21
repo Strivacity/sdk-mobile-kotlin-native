@@ -71,8 +71,8 @@ fun Main() {
   val nativeSDK by remember {
     mutableStateOf(
         NativeSDK(
-            "https://uat.strivacity.cloud",
-            "d2bbf4ebd52c4c04afcedfc59952758a",
+            "https://example.org",
+            "",
             "android://native-flow",
             "android://native-flow",
             SharedPreferenceStorage(
