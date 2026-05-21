@@ -30,15 +30,6 @@ class SessionExpiredError : Error()
  */
 class PlatformError(message: String, cause: Throwable? = null) : Error(message, cause)
 
-class GenericError(message: String, val code: Int) : Error(message, null) {
-  companion object {
-    fun createInvalidContext(message: String) = GenericError(message, INVALID_CONTEXT)
-
-    @JvmStatic
-    val INVALID_CONTEXT = 0
-  }
-}
-
 class WorkflowError(error: String, errorDescription: String?) : OidcError(error, errorDescription) {
 
   enum class WorkflowErrorId(private val id: String) {
