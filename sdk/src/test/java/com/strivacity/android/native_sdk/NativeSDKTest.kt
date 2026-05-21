@@ -25,6 +25,7 @@ import com.strivacity.android.native_sdk.mocks.respondTokenExchange200
 import com.strivacity.android.native_sdk.mocks.respondTokenExchangeException
 import com.strivacity.android.native_sdk.mocks.storeProfile
 import com.strivacity.android.native_sdk.mocks.validAccessToken
+import com.strivacity.android.native_sdk.render.DefaultCredentialManagerProvider
 import com.strivacity.android.native_sdk.render.FallbackHandler
 import com.strivacity.android.native_sdk.render.LoginController
 import com.strivacity.android.native_sdk.render.models.Screen
@@ -355,7 +356,7 @@ internal class NativeSDKTest : NativeSDKTestBase() {
             ),
             fallbackHandler = {},
             logging = testLogging,
-            context = WeakReference(mock<Context>())
+            credentialManagerProvider = DefaultCredentialManagerProvider(WeakReference(mock<Context>()))
         )
     sdk.loginController = loginController
 

@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.core.net.toUri
+import com.strivacity.android.native_sdk.render.DefaultCredentialManagerProvider
 import com.strivacity.android.native_sdk.render.FallbackHandler
 import com.strivacity.android.native_sdk.render.LoginController
 import com.strivacity.android.native_sdk.service.HttpService
@@ -185,7 +186,7 @@ internal constructor(
                   oidcParams,
                   fallbackHandler,
                   logging,
-                WeakReference(context),
+                  DefaultCredentialManagerProvider(WeakReference(context)),
               )
 
           loginController.initialize()
@@ -315,7 +316,7 @@ internal constructor(
               oidcParams,
               fallbackHandler,
               logging,
-            WeakReference(context)
+              DefaultCredentialManagerProvider(WeakReference(context)),
           )
 
       loginController.initialize()

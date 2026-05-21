@@ -1,12 +1,8 @@
 package com.strivacity.android.native_sdk.render
 
-import android.app.Activity
-import android.content.Context
 import android.os.Looper
 import androidx.credentials.CreatePublicKeyCredentialRequest
-import androidx.credentials.CreatePublicKeyCredentialResponse
 import androidx.credentials.GetCredentialRequest
-import androidx.credentials.GetCredentialResponse
 import androidx.credentials.GetPublicKeyCredentialOption
 import androidx.credentials.PublicKeyCredential
 import androidx.credentials.exceptions.CreateCredentialException
@@ -31,7 +27,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
-import java.lang.ref.WeakReference
 
 typealias FallbackHandler = (uriToLoad: String) -> Unit
 
@@ -42,7 +37,7 @@ internal constructor(
     internal val oidcParams: OidcParams,
     private val fallbackHandler: FallbackHandler,
     private val logging: Logging,
-    private val context: WeakReference<Context>?,
+    private val credentialManagerProvider: CredentialManagerProvider,
 ) {
   private val _screen = MutableStateFlow<Screen?>(null)
   val screen: StateFlow<Screen?> = _screen
@@ -73,6 +68,7 @@ internal constructor(
   fun close() {
     nativeSDK.cancelFlow()
   }
+
   private fun findEnrollmentWidget(formId: String): WithEnrollmentOptions<Widget> {
     val enrollWidget = screen.value?.forms
       ?.firstOrNull { form -> form.id == formId }
@@ -244,10 +240,10 @@ internal constructor(
     fallbackHandler(uri)
   }
 
-  private suspend fun enrollPasskeyOrWebauthn(enrollOptions: EnrollOptions): CreatePublicKeyCredentialResponse {
+  private suspend fun enrollPasskeyOrWebauthn(enrollOptions: EnrollOptions): androidx.credentials.CreatePublicKeyCredentialResponse {
     logging.debug("LoginController: Passkey enrollment in progress")
-    val activityContext = context?.get()
-    require(activityContext != null && activityContext is Activity) {
+    val activityContext = credentialManagerProvider.activityContext()
+    require(activityContext != null) {
       "For Passkey/WebAuthn enrollment, providing Activity context to login/entry is mandatory"
     }
     if (Looper.myLooper() != Looper.getMainLooper()) {
@@ -256,23 +252,17 @@ internal constructor(
     try {
       val requestJson = jsonConverter.encodeToString(enrollOptions)
       val request = CreatePublicKeyCredentialRequest(requestJson = requestJson)
-      val credentialManager = androidx.credentials.CredentialManager.create(activityContext)
-      val response = credentialManager.createCredential(
-        context = activityContext,
-        request = request
-      ) as CreatePublicKeyCredentialResponse
-      return response
+      return credentialManagerProvider.createCredential(activityContext, request)
     } catch (e: CreateCredentialException) {
-      // TODO: readme about errors and how
       logging.warn("LoginController: Enrollment failed", e)
       throw PlatformError("Could not perform passkey enrollment", cause = e)
     }
   }
 
-  private suspend fun assertPasskeyOrWebauthn(assertionOptions: AssertionOptions): GetCredentialResponse {
+  private suspend fun assertPasskeyOrWebauthn(assertionOptions: AssertionOptions): androidx.credentials.GetCredentialResponse {
     logging.debug("LoginController: Passkey login in progress")
-    val activityContext = context?.get()
-    require(activityContext != null && activityContext is Activity) {
+    val activityContext = credentialManagerProvider.activityContext()
+    require(activityContext != null) {
       "For Passkey/WebAuthn assertion support, providing Activity context to login/entry is mandatory"
     }
     if (Looper.myLooper() != Looper.getMainLooper()) {
@@ -282,10 +272,7 @@ internal constructor(
       val getPublicKeyCredentialOption =
         GetPublicKeyCredentialOption(requestJson = jsonConverter.encodeToString(assertionOptions))
       val getCredentialRequest = GetCredentialRequest(listOf(getPublicKeyCredentialOption))
-      val credentialManager = androidx.credentials.CredentialManager.create(activityContext)
-      val response =
-        credentialManager.getCredential(request = getCredentialRequest, context = activityContext)
-      return response
+      return credentialManagerProvider.getCredential(activityContext, getCredentialRequest)
     } catch (e: GetCredentialException) {
       logging.warn("LoginController: Assertion failed", e)
       throw PlatformError("Could not perform login with passkey", cause = e)
@@ -298,8 +285,9 @@ internal constructor(
    * `explicitNulls = false` is required here so nullable properties are omitted from the
    * serialized JSON instead of being emitted as `"field": null`. The WebAuthn request JSON
    * consumed by Android credential APIs expects absent optional fields to stay absent, and
-   * changing this back to the default serializer configuration can produce non-compliant payloads.   */
+   * changing this back to the default serializer configuration can produce non-compliant payloads.
+   */
   private val jsonConverter: Json by lazy {
-    Json  { ignoreUnknownKeys = true; explicitNulls = false }
+    Json { ignoreUnknownKeys = true; explicitNulls = false }
   }
 }
