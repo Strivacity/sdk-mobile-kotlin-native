@@ -4,6 +4,7 @@ package com.strivacity.android.native_sdk
 
 import FakeLogging
 import TokenResponseBuilder
+import android.content.Context
 import android.net.Uri
 import com.strivacity.android.native_sdk.mocks.MutableTestClock
 import com.strivacity.android.native_sdk.mocks.NativeSDKBuilder
@@ -71,6 +72,7 @@ import org.mockito.kotlin.spy
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.verifyNoMoreInteractions
 import org.robolectric.RobolectricTestRunner
+import java.lang.ref.WeakReference
 
 internal abstract class NativeSDKTestBase {
   protected lateinit var sdkBuilder: NativeSDKBuilder
@@ -353,6 +355,7 @@ internal class NativeSDKTest : NativeSDKTestBase() {
             ),
             fallbackHandler = {},
             logging = testLogging,
+            context = WeakReference(mock<Context>())
         )
     sdk.loginController = loginController
 
