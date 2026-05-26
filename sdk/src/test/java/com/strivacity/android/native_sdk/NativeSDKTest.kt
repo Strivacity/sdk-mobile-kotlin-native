@@ -4,6 +4,7 @@ package com.strivacity.android.native_sdk
 
 import FakeLogging
 import TokenResponseBuilder
+import android.content.Context
 import android.net.Uri
 import com.strivacity.android.native_sdk.mocks.MutableTestClock
 import com.strivacity.android.native_sdk.mocks.NativeSDKBuilder
@@ -24,6 +25,7 @@ import com.strivacity.android.native_sdk.mocks.respondTokenExchange200
 import com.strivacity.android.native_sdk.mocks.respondTokenExchangeException
 import com.strivacity.android.native_sdk.mocks.storeProfile
 import com.strivacity.android.native_sdk.mocks.validAccessToken
+import com.strivacity.android.native_sdk.render.DefaultCredentialManagerProvider
 import com.strivacity.android.native_sdk.render.FallbackHandler
 import com.strivacity.android.native_sdk.render.LoginController
 import com.strivacity.android.native_sdk.render.models.Screen
@@ -71,6 +73,7 @@ import org.mockito.kotlin.spy
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.verifyNoMoreInteractions
 import org.robolectric.RobolectricTestRunner
+import java.lang.ref.WeakReference
 
 internal abstract class NativeSDKTestBase {
   protected lateinit var sdkBuilder: NativeSDKBuilder
@@ -353,6 +356,7 @@ internal class NativeSDKTest : NativeSDKTestBase() {
             ),
             fallbackHandler = {},
             logging = testLogging,
+            credentialManagerProvider = DefaultCredentialManagerProvider(WeakReference(mock<Context>()))
         )
     sdk.loginController = loginController
 

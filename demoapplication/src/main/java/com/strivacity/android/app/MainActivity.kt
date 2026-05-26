@@ -1,7 +1,6 @@
 package com.strivacity.android.app
 
 import android.app.ComponentCaller
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -53,8 +52,8 @@ import com.strivacity.android.native_sdk.WorkflowError
 import com.strivacity.android.native_sdk.render.FallbackHandler
 import com.strivacity.android.native_sdk.render.LoginController
 import com.strivacity.android.native_sdk.render.models.GlobalMessages
-import java.lang.ref.WeakReference
 import kotlinx.coroutines.launch
+import java.lang.ref.WeakReference
 
 class MainActivity : ComponentActivity() {
 
@@ -111,35 +110,39 @@ class MainActivity : ComponentActivity() {
 
     lifecycleScope.launch {
       nativeSDK.entry(
-          intent.data,
-          customTabsHandler,
-          {},
-          { e ->
-            var mappedErrorMessage: String? = null
-            if (e is WorkflowError) {
-              val idValue: String = e.error
-              val errorId: WorkflowError.WorkflowErrorId? =
-                  WorkflowError.WorkflowErrorId.valueOfId(idValue)
-              mappedErrorMessage = WORKFLOW_ERROR_ID_TO_MESSAGE[errorId]
-            }
+        intent.data,
+        customTabsHandler,
+        {},
+        { e ->
+          var mappedErrorMessage: String? = null
+          if (e is WorkflowError) {
+            val idValue: String = e.error
+            val errorId: WorkflowError.WorkflowErrorId? =
+              WorkflowError.WorkflowErrorId.valueOfId(idValue)
+            mappedErrorMessage = WORKFLOW_ERROR_ID_TO_MESSAGE[errorId]
+          }
 
-            val toastText = mappedErrorMessage ?: "Something bad happened, please try again"
-            lifecycleScope.launch {
-              Toast.makeText(this@MainActivity, toastText, Toast.LENGTH_SHORT).show()
-            }
-          })
+          val toastText = mappedErrorMessage ?: "Something bad happened, please try again"
+          lifecycleScope.launch {
+            Toast.makeText(this@MainActivity, toastText, Toast.LENGTH_SHORT).show()
+          }
+        },
+        context = this@MainActivity
+      )
     }
   }
 
   @Composable
   fun Main() {
     Scaffold(
-        modifier = Modifier.fillMaxSize(), floatingActionButton = { CancelFAB(nativeSDK!!) }) {
+        modifier = Modifier.fillMaxSize(), floatingActionButton = { CancelFAB(nativeSDK) }) {
             innerPadding ->
           Box(
-              modifier = Modifier.fillMaxSize().padding(innerPadding),
+              modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
               contentAlignment = Alignment.Center) {
-                Login(nativeSDK!!)
+                Login(nativeSDK)
               }
         }
   }

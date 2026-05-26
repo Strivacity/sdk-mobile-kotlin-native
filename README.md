@@ -457,6 +457,24 @@ fun PasswordView(screen: Screen, headlessAdapter: HeadlessAdapter) {
 }
 ```
 
+#### Passkeys
+
+Passkey support is available since **3.2.0**.
+
+To enable Passkeys, pass an `Activity` context (not an application context) to the `login` call. The call must be made from the UI thread.
+
+```kotlin
+// 'context' must be an Activity context
+nativeSDK.login(
+    context,   // Activity context required for Passkeys
+    onSuccess = {},
+    onError = { error = it }
+)
+```
+
+> **Note:** If a plain `Context` (e.g. application context) is passed, Passkey functionality will not be available, `IllegalArgumentException`
+> will be thrown.
+
 #### Cancel the active flow
 
 During login, it's possible to programmatically cancel a login flow using the `cancelFlow` method on the `nativeSDK` instance.

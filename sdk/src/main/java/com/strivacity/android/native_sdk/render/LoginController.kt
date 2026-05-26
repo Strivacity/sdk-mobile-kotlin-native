@@ -1,19 +1,32 @@
 package com.strivacity.android.native_sdk.render
 
+import android.os.Looper
+import androidx.credentials.CreatePublicKeyCredentialRequest
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.GetPublicKeyCredentialOption
+import androidx.credentials.PublicKeyCredential
+import androidx.credentials.exceptions.CreateCredentialException
+import androidx.credentials.exceptions.GetCredentialException
 import com.strivacity.android.native_sdk.Logging
 import com.strivacity.android.native_sdk.NativeSDK
+import com.strivacity.android.native_sdk.PlatformError
 import com.strivacity.android.native_sdk.SessionExpiredError
+import com.strivacity.android.native_sdk.render.models.AssertionOptions
+import com.strivacity.android.native_sdk.render.models.EnrollOptions
 import com.strivacity.android.native_sdk.render.models.FormWidget
 import com.strivacity.android.native_sdk.render.models.Messages
 import com.strivacity.android.native_sdk.render.models.Screen
+import com.strivacity.android.native_sdk.render.models.Widget
+import com.strivacity.android.native_sdk.render.models.WithAssertionOptions
+import com.strivacity.android.native_sdk.render.models.WithEnrollmentOptions
 import com.strivacity.android.native_sdk.service.LoginHandlerService
 import com.strivacity.android.native_sdk.service.OidcParams
 import io.ktor.http.encodeURLPath
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 
 typealias FallbackHandler = (uriToLoad: String) -> Unit
 
@@ -24,6 +37,7 @@ internal constructor(
     internal val oidcParams: OidcParams,
     private val fallbackHandler: FallbackHandler,
     private val logging: Logging,
+    private val credentialManagerProvider: CredentialManagerProvider,
 ) {
   private val _screen = MutableStateFlow<Screen?>(null)
   val screen: StateFlow<Screen?> = _screen
@@ -55,41 +69,80 @@ internal constructor(
     nativeSDK.cancelFlow()
   }
 
-  suspend fun submit(formId: String) =
-      withContext(Dispatchers.IO) {
-        val body =
-            when (val map = forms.value[formId]) {
-              null -> {
-                logging.warn("LoginController: No form data found for formId: $formId")
-                mapOf()
-              }
-              else -> unfoldMap(map)
-            }
+  private fun findEnrollmentWidget(formId: String): WithEnrollmentOptions<Widget> {
+    val enrollWidget = screen.value?.forms
+      ?.firstOrNull { form -> form.id == formId }
+      ?.widgets
+      ?.filterIsInstance<WithEnrollmentOptions<Widget>>()
+      ?.firstOrNull()
+    require(enrollWidget != null) {
+      "No enrollment widget found in form with id: $formId"
+    }
+    return enrollWidget
+  }
 
-        submit(formId, body)
+  private fun findAssertionWidget(formId: String): WithAssertionOptions<Widget> {
+    val assertionWidget = screen.value?.forms
+      ?.firstOrNull { form -> form.id == formId }
+      ?.widgets
+      ?.filterIsInstance<WithAssertionOptions<Widget>>()
+      ?.firstOrNull()
+    require(assertionWidget != null) {
+      "No assertion widget found in form with id: $formId"
+    }
+    return assertionWidget
+  }
+
+  suspend fun submit(formId: String, body: Map<String, Any> = mapOf()) {
+    when (formId) {
+      "passkey", "mfaWebAuthnAssertion" -> {
+        val assertionWidget = findAssertionWidget(formId)
+        val response = assertPasskeyOrWebauthn(assertionWidget.assertionOptions)
+        val credential = response.credential as PublicKeyCredential
+        val decodedCredential = Json.parseToJsonElement(credential.authenticationResponseJson)
+        stateForWidget(formId = formId, widgetId = assertionWidget.widget.id, decodedCredential)
+          .value = decodedCredential
       }
 
-  internal suspend fun submit(formId: String, body: Map<String, Any>) =
-      withContext(Dispatchers.IO) {
-        logging.debug(
-            "LoginController: Submitting form `$formId` on screen `${screen.value?.screen ?: "unknown"}`"
-        )
-        _processing.value = true
-
-        try {
-          updateScreen(loginHandlerService.submitForm(formId, body))
-        } catch (e: SessionExpiredError) {
-          logging.warn("LoginController: Session expired during form submission: $formId")
-          nativeSDK.cancelFlow(e)
-        } catch (e: Exception) {
-          logging.warn(
-              "LoginController: Failed to submit form: `$formId` on screen `${screen.value?.screen ?: "unknown"}`",
-              e,
-          )
-          logging.warn(e.stackTraceToString())
-          triggerFallback()
-        }
+      "passkeyEnroll", "mfaEnrollWebAuthn" -> {
+        val enrollWidget = findEnrollmentWidget(formId)
+        val response = enrollPasskeyOrWebauthn(enrollWidget.enrollOptions)
+        val decodedResponse = Json.parseToJsonElement(response.registrationResponseJson)
+        stateForWidget(formId = formId, widgetId = enrollWidget.widget.id, decodedResponse)
+          .value = decodedResponse
       }
+    }
+    withContext(Dispatchers.IO) {
+      val payload = when (val formValues = forms.value[formId]) {
+        null -> body
+        // merge form values with body - override default values from form values
+        // with body values
+        else -> unfoldMap(formValues) + body
+      }
+      doSubmit(formId, payload)
+    }
+  }
+
+  private suspend fun doSubmit(formId: String, payload: Map<String, Any>) {
+    logging.debug(
+      "LoginController: Submitting form `$formId` on screen `${screen.value?.screen ?: "unknown"}`"
+    )
+    _processing.value = true
+
+    try {
+      updateScreen(loginHandlerService.submitForm(formId, payload))
+    } catch (e: SessionExpiredError) {
+      logging.warn("LoginController: Session expired during form submission: $formId")
+      nativeSDK.cancelFlow(e)
+    } catch (e: Exception) {
+      logging.warn(
+        "LoginController: Failed to submit form: `$formId` on screen `${screen.value?.screen ?: "unknown"}`",
+        e,
+      )
+      logging.warn(e.stackTraceToString())
+      triggerFallback()
+    }
+  }
 
   fun <T> stateForWidget(formId: String, widgetId: String, defaultValue: T): MutableStateFlow<T> {
     @Suppress("UNCHECKED_CAST")
@@ -185,5 +238,56 @@ internal constructor(
     logging.warn("LoginController: Triggering fallback to hosted page")
     isRedirectExpected = true
     fallbackHandler(uri)
+  }
+
+  private suspend fun enrollPasskeyOrWebauthn(enrollOptions: EnrollOptions): androidx.credentials.CreatePublicKeyCredentialResponse {
+    logging.debug("LoginController: Passkey enrollment in progress")
+    val activityContext = credentialManagerProvider.activityContext()
+    require(activityContext != null) {
+      "For Passkey/WebAuthn enrollment, providing Activity context to login/entry is mandatory"
+    }
+    if (Looper.myLooper() != Looper.getMainLooper()) {
+      logging.warn("Passkey/WebAuthn related operations should be invoked from Main thread")
+    }
+    try {
+      val requestJson = jsonConverter.encodeToString(enrollOptions)
+      val request = CreatePublicKeyCredentialRequest(requestJson = requestJson)
+      return credentialManagerProvider.createCredential(activityContext, request)
+    } catch (e: CreateCredentialException) {
+      logging.warn("LoginController: Enrollment failed", e)
+      throw PlatformError("Could not perform passkey enrollment", cause = e)
+    }
+  }
+
+  private suspend fun assertPasskeyOrWebauthn(assertionOptions: AssertionOptions): androidx.credentials.GetCredentialResponse {
+    logging.debug("LoginController: Passkey login in progress")
+    val activityContext = credentialManagerProvider.activityContext()
+    require(activityContext != null) {
+      "For Passkey/WebAuthn assertion support, providing Activity context to login/entry is mandatory"
+    }
+    if (Looper.myLooper() != Looper.getMainLooper()) {
+      logging.warn("Passkey/WebAuthn related operations should be invoked from Main thread")
+    }
+    try {
+      val getPublicKeyCredentialOption =
+        GetPublicKeyCredentialOption(requestJson = jsonConverter.encodeToString(assertionOptions))
+      val getCredentialRequest = GetCredentialRequest(listOf(getPublicKeyCredentialOption))
+      return credentialManagerProvider.getCredential(activityContext, getCredentialRequest)
+    } catch (e: GetCredentialException) {
+      logging.warn("LoginController: Assertion failed", e)
+      throw PlatformError("Could not perform login with passkey", cause = e)
+    }
+  }
+
+  /**
+   * Dedicated JSON serializer for WebAuthn/passkey request payloads.
+   *
+   * `explicitNulls = false` is required here so nullable properties are omitted from the
+   * serialized JSON instead of being emitted as `"field": null`. The WebAuthn request JSON
+   * consumed by Android credential APIs expects absent optional fields to stay absent, and
+   * changing this back to the default serializer configuration can produce non-compliant payloads.
+   */
+  private val jsonConverter: Json by lazy {
+    Json { ignoreUnknownKeys = true; explicitNulls = false }
   }
 }

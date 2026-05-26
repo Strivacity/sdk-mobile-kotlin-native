@@ -15,6 +15,7 @@ ktor = "3.2.2"
 kotlinx-serialization-json = "1.8.1"
 kotlinx-coroutines-test = "1.10.2"
 browser = "1.8.0"
+credentials = "1.6.0"
 mockito = "6.1.0"
 browserVersion = "1.9.0"
 robolectric = "4.13"
@@ -45,6 +46,7 @@ ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor"}
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization-json" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines-test" }
 androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "browser" }
+androidx-credentials = { group = "androidx.credentials", name = "credentials", version.ref = "credentials" }
 mockito = { module="org.mockito.kotlin:mockito-kotlin", version.ref="mockito" }
 browser = { group = "androidx.browser", name = "browser", version.ref = "browserVersion" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }

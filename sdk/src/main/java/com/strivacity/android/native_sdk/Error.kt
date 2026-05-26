@@ -22,6 +22,14 @@ class HttpError(val statusCode: Int) : Error(message = "HTTP Error with status c
 
 class SessionExpiredError : Error()
 
+/**
+ * General error class for exceptions thrown by Platform.
+ * Example: Passkey enrollment error
+ *
+ * [cause] can be used to analyze the exact reason for the error raised
+ */
+class PlatformError(message: String, cause: Throwable? = null) : Error(message, cause)
+
 class WorkflowError(error: String, errorDescription: String?) : OidcError(error, errorDescription) {
 
   enum class WorkflowErrorId(private val id: String) {

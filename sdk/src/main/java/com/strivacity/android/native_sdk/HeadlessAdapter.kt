@@ -72,8 +72,8 @@ class HeadlessAdapter {
     return loginController.screen.value!!
   }
 
-  suspend fun submit(formId: String, body: Map<String, Any>) =
-      withContext(Dispatchers.IO) { loginController.submit(formId, body) }
+  suspend fun submit(formId: String, body: Map<String, Any> = mapOf()) =
+      loginController.submit(formId, body)
 
   fun messages(): StateFlow<Messages?> {
     return loginController.messages
