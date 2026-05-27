@@ -94,6 +94,10 @@ internal constructor(
   }
 
   suspend fun submit(formId: String, body: Map<String, Any> = mapOf()) {
+    logging.debug(
+      "LoginController: Submitting form `$formId` on screen `${screen.value?.screen ?: "unknown"}`"
+    )
+    _processing.value = true
     when (formId) {
       "passkey", "mfaWebAuthnAssertion" -> {
         val assertionWidget = findAssertionWidget(formId)
@@ -124,11 +128,6 @@ internal constructor(
   }
 
   private suspend fun doSubmit(formId: String, payload: Map<String, Any>) {
-    logging.debug(
-      "LoginController: Submitting form `$formId` on screen `${screen.value?.screen ?: "unknown"}`"
-    )
-    _processing.value = true
-
     try {
       updateScreen(loginHandlerService.submitForm(formId, payload))
     } catch (e: SessionExpiredError) {
@@ -141,6 +140,8 @@ internal constructor(
       )
       logging.warn(e.stackTraceToString())
       triggerFallback()
+    } finally {
+      _processing.value = false
     }
   }
 
