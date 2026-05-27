@@ -26,7 +26,7 @@ open class HeadlessAdapter {
    */
   @get:JvmSynthetic
   val isProcessing: StateFlow<Boolean>
-    get()= loginController.processing
+    get() = loginController.processing
 
   constructor(
       nativeSDK: NativeSDK,

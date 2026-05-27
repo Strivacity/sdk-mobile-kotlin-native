@@ -98,23 +98,27 @@ internal constructor(
       "LoginController: Submitting form `$formId` on screen `${screen.value?.screen ?: "unknown"}`"
     )
     _processing.value = true
-    when (formId) {
-      "passkey", "mfaWebAuthnAssertion" -> {
-        val assertionWidget = findAssertionWidget(formId)
-        val response = assertPasskeyOrWebauthn(assertionWidget.assertionOptions)
-        val credential = response.credential as PublicKeyCredential
-        val decodedCredential = Json.parseToJsonElement(credential.authenticationResponseJson)
-        stateForWidget(formId = formId, widgetId = assertionWidget.widget.id, decodedCredential)
-          .value = decodedCredential
-      }
+    try {
+      when (formId) {
+        "passkey", "mfaWebAuthnAssertion" -> {
+          val assertionWidget = findAssertionWidget(formId)
+          val response = assertPasskeyOrWebauthn(assertionWidget.assertionOptions)
+          val credential = response.credential as PublicKeyCredential
+          val decodedCredential = Json.parseToJsonElement(credential.authenticationResponseJson)
+          stateForWidget(formId = formId, widgetId = assertionWidget.widget.id, decodedCredential)
+            .value = decodedCredential
+        }
 
-      "passkeyEnroll", "mfaEnrollWebAuthn" -> {
-        val enrollWidget = findEnrollmentWidget(formId)
-        val response = enrollPasskeyOrWebauthn(enrollWidget.enrollOptions)
-        val decodedResponse = Json.parseToJsonElement(response.registrationResponseJson)
-        stateForWidget(formId = formId, widgetId = enrollWidget.widget.id, decodedResponse)
-          .value = decodedResponse
+        "passkeyEnroll", "mfaEnrollWebAuthn" -> {
+          val enrollWidget = findEnrollmentWidget(formId)
+          val response = enrollPasskeyOrWebauthn(enrollWidget.enrollOptions)
+          val decodedResponse = Json.parseToJsonElement(response.registrationResponseJson)
+          stateForWidget(formId = formId, widgetId = enrollWidget.widget.id, decodedResponse)
+            .value = decodedResponse
+        }
       }
+    } finally {
+      _processing.value = false
     }
     withContext(Dispatchers.IO) {
       val payload = when (val formValues = forms.value[formId]) {
