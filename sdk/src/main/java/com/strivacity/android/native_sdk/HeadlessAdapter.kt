@@ -4,21 +4,29 @@ import com.strivacity.android.native_sdk.render.LoginController
 import com.strivacity.android.native_sdk.render.models.Messages
 import com.strivacity.android.native_sdk.render.models.Screen
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
-class HeadlessAdapter {
-  private val scope: CoroutineScope
+open class HeadlessAdapter {
+  protected val scope: CoroutineScope
 
   private val nativeSDK: NativeSDK
-  private val loginController: LoginController
+  protected val loginController: LoginController
 
   private val delegate: HeadlessAdapterDelegate
+
+  /**
+   * A [StateFlow] that emits the current processing state of the login flow.
+   *
+   * Emits `true` when a login operation (form submission, authentication request, etc.) is in progress.
+   * Emits `false` when no operation is actively being processed.
+   */
+  @get:JvmSynthetic
+  val isProcessing: StateFlow<Boolean>
+    get()= loginController.processing
 
   constructor(
       nativeSDK: NativeSDK,
@@ -72,8 +80,10 @@ class HeadlessAdapter {
     return loginController.screen.value!!
   }
 
+  @JvmSynthetic
   suspend fun submit(formId: String, body: Map<String, Any> = mapOf()) =
       loginController.submit(formId, body)
+
 
   fun messages(): StateFlow<Messages?> {
     return loginController.messages
