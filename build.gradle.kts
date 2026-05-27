@@ -5,7 +5,7 @@ plugins {
     alias(libs.plugins.kotlin.compose) apply false
     alias(libs.plugins.android.library) apply false
 
-    id("com.diffplug.spotless") version "7.2.1"
+    alias(libs.plugins.spotless)
 }
 
 spotless {
@@ -13,5 +13,11 @@ spotless {
         target("**/*.kt")
         ktlint()
         ktfmt()
+    }
+    java {
+        target("**/*.java")
+        toggleOffOn()
+        googleJavaFormat().aosp()
+        removeUnusedImports()
     }
 }

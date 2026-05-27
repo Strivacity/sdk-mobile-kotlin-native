@@ -32,5 +32,15 @@ jobs:
         with:
           cache-disabled: true
 
+      - name: "Verify Java formatting"
+        id: spotless
+        continue-on-error: true
+        run: ./gradlew spotlessJavaCheck
+
       - name: "Run tests"
         run: ./gradlew :sdk:test --no-daemon
+
+      - name: "Fail if Java formatting check failed"
+        if: steps.spotless.outcome == 'failure'
+        run: exit 1
+

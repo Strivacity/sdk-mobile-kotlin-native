@@ -23,3 +23,5 @@ rootProject.name = "sdk-mobile-kotlin-native"
 include(":demoapplication")
 include(":headlessdemo")
 include(":sdk")
+include(":sdk-compat")
+include(":javademo")
