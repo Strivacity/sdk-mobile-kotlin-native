@@ -78,6 +78,11 @@ class HeadlessAdapter {
   fun messages(): StateFlow<Messages?> {
     return loginController.messages
   }
+
+  fun triggerFallback() {
+    loginController.triggerFallback()
+  }
+
 }
 
 interface HeadlessAdapterDelegate {
