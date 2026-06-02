@@ -8,7 +8,6 @@ import android.view.ViewGroup;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import com.strivacity.android.native_sdk.javademo.R;
@@ -99,20 +98,25 @@ public class ProfileFragment extends Fragment {
 
         viewModel
                 .getAccessToken()
-                .thenAcceptAsync(
-                        token ->
-                                binding.profileAccessTokenValue.setText(token != null ? token : ""),
-                        ContextCompat.getMainExecutor(requireContext()))
-                .exceptionally(
-                        throwable -> {
-                            Toast.makeText(
-                                            getContext(),
-                                            "Failed to fetch access token: "
-                                                    + throwable.getMessage(),
-                                            Toast.LENGTH_SHORT)
-                                    .show();
-                            return null;
+                .observe(
+                        getViewLifecycleOwner(),
+                        token -> {
+                            binding.profileAccessTokenValue.setText(token);
+                            binding.profileLayoutAccessToken.setVisibility(View.VISIBLE);
                         });
+
+        viewModel
+                .getAccessTokenError()
+                .observe(
+                        getViewLifecycleOwner(),
+                        error ->
+                                Toast.makeText(
+                                                getContext(),
+                                                "Failed to fetch access token: " + error,
+                                                Toast.LENGTH_SHORT)
+                                        .show());
+
+        binding.profileLoadAccessToken.setOnClickListener(v -> viewModel.loadAccessToken());
 
         binding.profileRevokeButton.setOnClickListener(v -> viewModel.revoke());
         binding.profileLogoutButton.setOnClickListener(v -> viewModel.logout());

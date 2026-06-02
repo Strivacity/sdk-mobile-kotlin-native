@@ -2,16 +2,18 @@ package com.strivacity.android.native_sdk.javademo.ui.profile;
 
 import androidx.annotation.NonNull;
 import androidx.lifecycle.LiveData;
+import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.Transformations;
 import androidx.lifecycle.ViewModel;
 import androidx.lifecycle.ViewModelProvider;
 import com.strivacity.android.native_sdk.compat.NativeSDKJava;
-import java.util.concurrent.CompletableFuture;
 
 /** ViewModel for the Profile screen. Owns profile-specific data and session actions. */
 public class ProfileViewModel extends ViewModel {
 
     private final LiveData<String> idToken;
+    private final MutableLiveData<String> accessToken = new MutableLiveData<>();
+    private final MutableLiveData<String> accessTokenError = new MutableLiveData<>();
     private final NativeSDKJava nativeSDK;
 
     public ProfileViewModel(@NonNull NativeSDKJava nativeSDK) {
@@ -26,8 +28,23 @@ public class ProfileViewModel extends ViewModel {
         return idToken;
     }
 
-    public CompletableFuture<String> getAccessToken() {
-        return nativeSDK.getAccessToken();
+    public LiveData<String> getAccessToken() {
+        return accessToken;
+    }
+
+    public LiveData<String> getAccessTokenError() {
+        return accessTokenError;
+    }
+
+    public void loadAccessToken() {
+        nativeSDK
+                .getAccessToken()
+                .thenAccept(token -> accessToken.postValue(token != null ? token : ""))
+                .exceptionally(
+                        throwable -> {
+                            accessTokenError.postValue(throwable.getMessage());
+                            return null;
+                        });
     }
 
     public void logout() {

@@ -29,4 +29,7 @@
     <string name="button_logout">Logout</string>
     <string name="error_title">Something went wrong</string>
     <string name="error_try_again">Try again</string>
+    <string name="profileAccessTokenValue">Access token value</string>
+    <string name="profileIdTokenClaimsValue">ID Token Claims value</string>
+    <string name="button_load_access_token">Load access token</string>
 </resources>

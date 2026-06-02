@@ -118,32 +118,6 @@
             android:layout_marginBottom="16dp"
             android:background="?attr/colorControlHighlight" />
 
-        <!-- Access Token section -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/profile_label_access_token"
-            android:textAppearance="?attr/textAppearanceLabelLarge"
-            android:textColor="?attr/colorControlNormal"
-            android:textAllCaps="true"
-            android:layout_marginBottom="4dp" />
-
-        <TextView
-            android:id="@+id/profileAccessTokenValue"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textAppearance="?attr/textAppearanceBodySmall"
-            android:fontFamily="monospace"
-            android:ellipsize="end"
-            android:maxLines="3"
-            android:layout_marginBottom="16dp" />
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_marginBottom="16dp"
-            android:background="?attr/colorControlHighlight" />
-
         <!-- Claims section -->
         <TextView
             android:layout_width="wrap_content"
@@ -158,9 +132,11 @@
             android:id="@+id/profileClaimsValue"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textAppearance="?attr/textAppearanceBodySmall"
+            android:layout_marginBottom="16dp"
             android:fontFamily="monospace"
-            android:layout_marginBottom="16dp" />
+            android:textAppearance="@style/TextAppearance.AppCompat.Body1"
+            android:contentDescription="@string/profileIdTokenClaimsValue"
+            android:textIsSelectable="true" />
 
         <View
             android:layout_width="match_parent"
@@ -168,17 +144,58 @@
             android:layout_marginBottom="16dp"
             android:background="?attr/colorControlHighlight" />
 
+        <LinearLayout
+            android:id="@+id/profile_layout_access_token"
+            android:visibility="gone"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+            <!-- Access Token section -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/profile_label_access_token"
+                android:textAppearance="?attr/textAppearanceLabelLarge"
+                android:textColor="?attr/colorControlNormal"
+                android:textAllCaps="true"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:id="@+id/profileAccessTokenValue"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:ellipsize="end"
+                android:fontFamily="monospace"
+                android:maxLines="3"
+                android:textAppearance="@style/TextAppearance.AppCompat.Body1"
+                android:contentDescription="@string/profileAccessTokenValue"
+                android:textIsSelectable="true" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginBottom="16dp"
+                android:background="?attr/colorControlHighlight" />
+        </LinearLayout>
+
+
         <!-- Action buttons -->
+        <Button
+            android:id="@+id/profileLoadAccessToken"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/button_load_access_token"/>
+
         <Button
             android:id="@+id/profileRevokeButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
-            android:text="@string/button_revoke"
-            style="@style/Widget.AppCompat.Button.Borderless" />
+            android:text="@string/button_revoke"/>
 
         <Button
-            android:id="@+id/profileLogoutButton"
+            android:id="@+id/profile_logout_button"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/button_logout" />
