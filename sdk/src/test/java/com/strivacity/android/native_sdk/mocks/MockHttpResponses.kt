@@ -124,6 +124,25 @@ internal fun MockRequestHandleScope.respondTokenExchange200(
         }
     }
 
+internal fun MockRequestHandleScope.respondTokenExchange200WithoutIdToken(
+    request: HttpRequestData,
+): HttpResponseData? =
+    with(request.url.encodedPath) {
+        when {
+            startsWith("/oauth2/token") -> {
+                respond(
+                    TokenResponseBuilder().buildAsStringWithoutIdToken(),
+                    HttpStatusCode.OK,
+                    headers { set(HttpHeaders.ContentType, "application/json") },
+                )
+            }
+
+            else -> {
+                null
+            }
+        }
+    }
+
 fun MockRequestHandleScope.respondTokenExchange500(
     tokenResponseBuilder: () -> String,
     request: HttpRequestData,

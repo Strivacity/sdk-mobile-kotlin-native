@@ -100,7 +100,14 @@ class NativeSDK
         ) =
             withContext(dispatchers.IO) {
                 logging.info("NativeSDK: Starting login flow")
-                val oidcParams = OidcParams(onSuccess, onError)
+                val scopes = loginParameters?.scopes ?: listOf("openid", "profile")
+                val wasIdTokenRequested = scopes.contains("openid")
+                val oidcParams =
+                    OidcParams(
+                        onSuccess = onSuccess,
+                        onError = onError,
+                        shouldVerifyIdTokenClaims = wasIdTokenRequested,
+                    )
 
                 val url =
                     URLBuilder(issuer)
@@ -110,12 +117,13 @@ class NativeSDK
                             parameters.append("client_id", clientId)
                             parameters.append("redirect_uri", redirectURI)
                             parameters.append("state", oidcParams.state)
-                            parameters.append("nonce", oidcParams.nonce)
+                            if (wasIdTokenRequested) {
+                                parameters.append("nonce", oidcParams.nonce)
+                            }
                             parameters.append("code_challenge", oidcParams.codeChallenge)
                             parameters.append("code_challenge_method", "S256")
                             parameters.append("sdk", mode.value)
 
-                            val scopes = loginParameters?.scopes ?: listOf("openid", "profile")
                             parameters.append("scope", scopes.joinToString(separator = " "))
                             logging.debug("NativeSDK: Login scopes: ${parameters["scope"]}")
 
@@ -315,7 +323,7 @@ class NativeSDK
                 }
 
                 val loginHandlerService = LoginHandlerService(httpService, issuer, sessionId)
-                val oidcParams = OidcParams(onSuccess, onError)
+                val oidcParams = OidcParams(onSuccess, onError, shouldVerifyIdTokenClaims = false)
                 val loginController =
                     LoginController(
                         this@NativeSDK,
@@ -536,38 +544,34 @@ class NativeSDK
                         TokenExchangeParams(code, oidcParams.codeVerifier, redirectURI, clientId),
                     )
 
-                logging.debug("NativeSDK: Token exchange successful, validating claims")
-                val claims = extractClaims(tokenResponse)
+                if (oidcParams.shouldVerifyIdTokenClaims) {
+                    logging.debug("NativeSDK: Token exchange successful, validating claims")
+                    val claims = extractClaims(tokenResponse)
 
-                val responseNonce = claims["nonce"] as? String
-                if (responseNonce == null || oidcParams.nonce != responseNonce) {
-                    logging.error("NativeSDK: Nonce validation failed")
-                    cleanup()
-                    oidcParams.onError(
-                        InvalidCallbackError("Nonce param did not matched expected value"),
-                    )
-                    return
-                }
+                    val responseNonce = claims["nonce"] as? String
+                    if (responseNonce == null || oidcParams.nonce != responseNonce) {
+                        logging.error("NativeSDK: Nonce validation failed")
+                        cleanup()
+                        oidcParams.onError(InvalidCallbackError("Nonce param did not matched expected value"))
+                        return
+                    }
 
-                val responseIssuer = claims["iss"] as? String
-                val normalizedIssuer = if (issuer.endsWith("/")) issuer else "$issuer/"
-                if (responseIssuer == null || normalizedIssuer != responseIssuer) {
-                    logging.error("NativeSDK: Issuer validation failed")
-                    cleanup()
-                    oidcParams.onError(
-                        InvalidCallbackError("Issuer param did not matched expected value"),
-                    )
-                    return
-                }
+                    val responseIssuer = claims["iss"] as? String
+                    val normalizedIssuer = if (issuer.endsWith("/")) issuer else "$issuer/"
+                    if (responseIssuer == null || normalizedIssuer != responseIssuer) {
+                        logging.error("NativeSDK: Issuer validation failed")
+                        cleanup()
+                        oidcParams.onError(InvalidCallbackError("Issuer param did not matched expected value"))
+                        return
+                    }
 
-                val responseAudience = claims["aud"] as? List<*>
-                if (responseAudience == null || !responseAudience.contains(clientId)) {
-                    logging.error("NativeSDK: Audience validation failed")
-                    cleanup()
-                    oidcParams.onError(
-                        InvalidCallbackError("Audience param did not matched expected value"),
-                    )
-                    return
+                    val responseAudience = claims["aud"] as? List<*>
+                    if (responseAudience == null || !responseAudience.contains(clientId)) {
+                        logging.error("NativeSDK: Audience validation failed")
+                        cleanup()
+                        oidcParams.onError(InvalidCallbackError("Audience param did not matched expected value"))
+                        return
+                    }
                 }
 
                 logging.debug("NativeSDK: All token validations passed, updating session")

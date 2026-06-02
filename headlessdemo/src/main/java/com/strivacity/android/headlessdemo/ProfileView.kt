@@ -43,7 +43,7 @@ fun ProfileView(nativeSDK: NativeSDK) {
         Text(accessToken)
         Text("")
         Text("claims", fontWeight = FontWeight.W600)
-        profile!!.idToken.split(".")[1].let {
+        profile!!.idToken?.split(".")[1].let {
             val decoded = String(android.util.Base64.decode(it, android.util.Base64.DEFAULT))
             Text(formatString(decoded))
         }

@@ -22,7 +22,18 @@ internal class TokenResponseBuilder(
 }
 """
 
-    fun decode(encoded: String): TokenResponse = Json.decodeFromString(encoded)
+    fun createAsTokenResponseWithoutIdToken(): TokenResponse = decode(buildAsStringWithoutIdToken())
+
+    fun buildAsStringWithoutIdToken(): String =
+        """
+{
+    "access_token": "test_access_token",
+    "refresh_token": "${Random.nextInt(1000000, 9999999).toString(36)}",
+    "expires_in": 3600
+}
+"""
+
+    fun decode(encoded: String): TokenResponse = defaultJson.decodeFromString(encoded)
 
     private fun fakeIdToken(now: Instant): String =
         """
@@ -51,4 +62,10 @@ internal class TokenResponseBuilder(
         val signature = "fake_sig"
         return "$header.$payload.$signature"
     }
+
+    private val defaultJson =
+        Json {
+            ignoreUnknownKeys = true
+            explicitNulls = false
+        }
 }

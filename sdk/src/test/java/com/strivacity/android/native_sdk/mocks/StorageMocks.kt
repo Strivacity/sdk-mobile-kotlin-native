@@ -28,6 +28,12 @@ fun Storage.validAccessToken() {
     storeProfile(profile)
 }
 
+fun Storage.validAccessTokenWithoutIdToken() {
+    val tokenResponse = TokenResponseBuilder().createAsTokenResponseWithoutIdToken()
+    val profile = Profile(tokenResponse)
+    storeProfile(profile)
+}
+
 fun Storage.withMissingRefreshToken() {
     val tokenResponse =
         TokenResponseBuilder()

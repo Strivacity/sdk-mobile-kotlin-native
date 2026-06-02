@@ -93,7 +93,7 @@ internal class LoginControllerPasskeyTest {
     ) = LoginController(
         nativeSDK = mockNativeSDK,
         loginHandlerService = mockLoginHandlerService,
-        oidcParams = OidcParams(onSuccess = {}, onError = {}),
+        oidcParams = OidcParams(onSuccess = {}, onError = {}, shouldVerifyIdTokenClaims = true),
         fallbackHandler = {},
         logging = fakeLogging,
         credentialManagerProvider =
@@ -109,7 +109,7 @@ internal class LoginControllerPasskeyTest {
     ) = LoginController(
         nativeSDK = mockNativeSDK,
         loginHandlerService = mockLoginHandlerService,
-        oidcParams = OidcParams(onSuccess = {}, onError = {}),
+        oidcParams = OidcParams(onSuccess = {}, onError = {}, shouldVerifyIdTokenClaims = true),
         fallbackHandler = {},
         logging = fakeLogging,
         credentialManagerProvider =
