@@ -23,32 +23,39 @@ import com.strivacity.android.native_sdk.render.models.StaticWidget
 import kotlinx.coroutines.launch
 
 @Composable
-fun GenericResultView(screen: Screen, headlessAdapter: HeadlessAdapter) {
-  val coroutineScope = rememberCoroutineScope()
+fun GenericResultView(
+    screen: Screen,
+    headlessAdapter: HeadlessAdapter,
+) {
+    val coroutineScope = rememberCoroutineScope()
 
-  Column(
-      modifier = Modifier.fillMaxWidth().padding(35.dp),
-      horizontalAlignment = Alignment.CenterHorizontally,
-      verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(35.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
         val genericResultWidgets = screen.forms?.find { it.id == "genericResult" }?.widgets
         Text(
             (genericResultWidgets?.find { it.id == "section-title" } as StaticWidget?)?.value
                 ?: "Title",
             modifier = Modifier.fillMaxWidth(),
             fontSize = 24.sp,
-            fontWeight = FontWeight.W600)
+            fontWeight = FontWeight.W600,
+        )
         Text(
             (genericResultWidgets?.find { it.id == "generic-result-text" } as StaticWidget?)?.value
                 ?: "Text",
-            modifier = Modifier.fillMaxWidth())
+            modifier = Modifier.fillMaxWidth(),
+        )
 
         Button(
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = StrivacityPrimary),
             onClick = {
-              coroutineScope.launch { headlessAdapter.submit("genericResult", mapOf()) }
-            }) {
-              Text("Continue")
-            }
-      }
+                coroutineScope.launch { headlessAdapter.submit("genericResult", mapOf()) }
+            },
+        ) {
+            Text("Continue")
+        }
+    }
 }

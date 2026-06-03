@@ -35,102 +35,126 @@ import com.strivacity.android.native_sdk.render.models.SubmitWidget
 import kotlinx.coroutines.launch
 
 @Composable
-fun IdentificationView(screen: Screen, headlessAdapter: HeadlessAdapter) {
-  val messages by headlessAdapter.messages().collectAsState()
+fun IdentificationView(
+    screen: Screen,
+    headlessAdapter: HeadlessAdapter,
+) {
+    val messages by headlessAdapter.messages().collectAsState()
 
-  val coroutineScope = rememberCoroutineScope()
+    val coroutineScope = rememberCoroutineScope()
 
-  var identifier by remember { mutableStateOf("") }
+    var identifier by remember { mutableStateOf("") }
 
-  val context = LocalContext.current
+    val context = LocalContext.current
 
-  Column(
-      horizontalAlignment = Alignment.CenterHorizontally,
-      verticalArrangement = Arrangement.spacedBy(10.dp),
-      modifier = Modifier
-        .fillMaxWidth()
-        .padding(35.dp)) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(35.dp),
+    ) {
         Text("Sign in", fontSize = 24.sp, fontWeight = FontWeight.W600)
 
         TextField(
             value = identifier,
             onValueChange = { identifier = it },
             label = { Text("Email address") },
-            modifier = Modifier.fillMaxWidth())
+            modifier = Modifier.fillMaxWidth(),
+        )
 
         val errorMessage = messages?.errorMessageForWidget("identifier", "identifier")
         if (errorMessage != null) {
-          Text(errorMessage, color = Color.Red, modifier = Modifier.fillMaxWidth())
+            Text(errorMessage, color = Color.Red, modifier = Modifier.fillMaxWidth())
         }
 
         Button(
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = StrivacityPrimary),
             onClick = {
-              coroutineScope.launch {
-                headlessAdapter.submit("identifier", mapOf("identifier" to identifier))
-              }
-            }) {
-              Text("Continue")
-            }
+                coroutineScope.launch {
+                    headlessAdapter.submit("identifier", mapOf("identifier" to identifier))
+                }
+            },
+        ) {
+            Text("Continue")
+        }
 
         val externalLogins = screen.forms?.filter { it.id.startsWith("externalLoginProvider") }
         val passkeyForm = screen.forms?.firstOrNull { it.id == "passkey" }
         if (externalLogins?.isNotEmpty() ?: false || passkeyForm != null) {
-          Text("OR")
+            Text("OR")
         }
         externalLogins?.forEach {
-          it.let {
+            it.let {
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors =
+                        ButtonDefaults.buttonColors(
+                            containerColor = StrivacitySecondary,
+                            contentColor = Color.Black,
+                        ),
+                    onClick = { coroutineScope.launch { headlessAdapter.submit(it.id, mapOf()) } },
+                ) {
+                    Text((it.widgets[0] as SubmitWidget).label)
+                }
+            }
+        }
+        passkeyForm?.let {
+            val widget = it.widgets.filterIsInstance<PasskeyLoginWidget>().first()
             Button(
                 modifier = Modifier.fillMaxWidth(),
                 colors =
                     ButtonDefaults.buttonColors(
-                        containerColor = StrivacitySecondary, contentColor = Color.Black),
-                onClick = { coroutineScope.launch { headlessAdapter.submit(it.id, mapOf()) } }) {
-                  Text((it.widgets[0] as SubmitWidget).label)
-                }
-          }
-        }
-        passkeyForm?.let {
-          val widget = it.widgets.filterIsInstance<PasskeyLoginWidget>().first()
-          Button(
-            modifier = Modifier.fillMaxWidth(),
-            colors =
-              ButtonDefaults.buttonColors(
-                containerColor = StrivacitySecondary, contentColor = Color.Black
-              ),
-            onClick = {
-              coroutineScope.launch {
-                try {
-                  headlessAdapter.submit(it.id)
-                } catch (ex: Throwable) {
-                  when (ex) {
-                    is PlatformError -> {
-                      Toast.makeText(context, ex.cause?.message ?: "Unknown issue", Toast.LENGTH_SHORT).show()
+                        containerColor = StrivacitySecondary,
+                        contentColor = Color.Black,
+                    ),
+                onClick = {
+                    coroutineScope.launch {
+                        try {
+                            headlessAdapter.submit(it.id)
+                        } catch (ex: Throwable) {
+                            when (ex) {
+                                is PlatformError -> {
+                                    Toast
+                                        .makeText(
+                                            context,
+                                            ex.cause?.message ?: "Unknown issue",
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
+                                }
+
+                                else -> {
+                                    Toast
+                                        .makeText(
+                                            context,
+                                            ex.message ?: "Unknown issue",
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
+                                }
+                            }
+                        }
                     }
-                    else -> Toast.makeText(context, ex.message ?: "Unknown issue", Toast.LENGTH_SHORT).show()
-                  }
-                }
-              }
+                },
+            ) {
+                Text(widget.label)
             }
-          ) {
-            Text(widget.label)
-          }
         }
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center) {
-              Text("Don't have an account?")
-              TextButton(
-                  onClick = {
-                    coroutineScope.launch {
-                      headlessAdapter.submit("additionalActions/registration", mapOf())
-                    }
-                  }) {
-                    Text("Sign up")
-                  }
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            Text("Don't have an account?")
+            TextButton(onClick = {
+                coroutineScope.launch {
+                    headlessAdapter.submit("additionalActions/registration", mapOf())
+                }
+            }) {
+                Text("Sign up")
             }
-      }
+        }
+    }
 }

@@ -32,74 +32,92 @@ import com.strivacity.android.native_sdk.render.models.StaticWidget
 import kotlinx.coroutines.launch
 
 @Composable
-fun MFAMethodView(screen: Screen, headlessAdapter: HeadlessAdapter) {
-  val coroutineScope = rememberCoroutineScope()
+fun MFAMethodView(
+    screen: Screen,
+    headlessAdapter: HeadlessAdapter,
+) {
+    val coroutineScope = rememberCoroutineScope()
 
-  val identifierWidget =
-      screen.forms?.find { it.id == "reset" }?.widgets?.find { it.id == "identifier" }
+    val identifierWidget =
+        screen.forms
+            ?.find { it.id == "reset" }
+            ?.widgets
+            ?.find { it.id == "identifier" }
 
-  val identifier =
-      when (identifierWidget) {
-        is StaticWidget -> {
-          identifierWidget.value
+    val identifier =
+        when (identifierWidget) {
+            is StaticWidget -> {
+                identifierWidget.value
+            }
+
+            else -> {
+                ""
+            }
         }
-        else -> ""
-      }
 
-  var target by remember { mutableStateOf("") }
+    var target by remember { mutableStateOf("") }
 
-  Column(
-      horizontalAlignment = Alignment.CenterHorizontally,
-      verticalArrangement = Arrangement.spacedBy(10.dp),
-      modifier = Modifier.fillMaxWidth().padding(35.dp)) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.fillMaxWidth().padding(35.dp),
+    ) {
         Text("Choose a multi-factor method", fontSize = 24.sp, fontWeight = FontWeight.W600)
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
-            modifier = Modifier.fillMaxWidth()) {
-              Text(identifier)
-              TextButton(
-                  onClick = {
-                    coroutineScope.launch { headlessAdapter.submit("reset", mapOf()) }
-                  }) {
-                    Text("Not you?")
-                  }
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(identifier)
+            TextButton(onClick = {
+                coroutineScope.launch { headlessAdapter.submit("reset", mapOf()) }
+            }) {
+                Text("Not you?")
             }
+        }
 
         Column(modifier = Modifier.selectableGroup().fillMaxWidth()) {
-          (screen.forms?.find { it.id == "mfaMethod" }?.widgets?.find { it.id == "id" }
-                  as SelectWidget?)
-              ?.options
-              ?.forEach {
-                Text(it.label!!)
-                it.options?.forEach { it: SelectWidget.Option ->
-                  it.let {
-                    Row(
-                        Modifier.selectable(
-                            selected = it.value == target,
-                            onClick = { target = it.value!! },
-                            role = Role.RadioButton),
-                        verticalAlignment = Alignment.CenterVertically) {
-                          RadioButton(selected = target == it.value, onClick = null)
-                          Text(text = it.label!!)
+            (
+                screen.forms
+                    ?.find { it.id == "mfaMethod" }
+                    ?.widgets
+                    ?.find { it.id == "id" }
+                    as SelectWidget?
+            )?.options
+                ?.forEach {
+                    Text(it.label!!)
+                    it.options?.forEach { it: SelectWidget.Option ->
+                        it.let {
+                            Row(
+                                Modifier.selectable(
+                                    selected = it.value == target,
+                                    onClick = { target = it.value!! },
+                                    role = Role.RadioButton,
+                                ),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                RadioButton(selected = target == it.value, onClick = null)
+                                Text(text = it.label!!)
+                            }
                         }
-                  }
+                    }
                 }
-              }
         }
 
         Button(
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = StrivacityPrimary),
             onClick = {
-              coroutineScope.launch { headlessAdapter.submit("mfaMethod", mapOf("id" to target)) }
-            }) {
-              Text("Continue")
-            }
+                coroutineScope.launch { headlessAdapter.submit("mfaMethod", mapOf("id" to target)) }
+            },
+        ) {
+            Text("Continue")
+        }
 
         TextButton(
-            onClick = { coroutineScope.launch { headlessAdapter.submit("reset", mapOf()) } }) {
-              Text("Back to login")
-            }
-      }
+            onClick = { coroutineScope.launch { headlessAdapter.submit("reset", mapOf()) } },
+        ) {
+            Text("Back to login")
+        }
+    }
 }

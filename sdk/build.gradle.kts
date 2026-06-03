@@ -11,7 +11,7 @@ android {
     compileSdk = 36
 
     buildFeatures {
-      buildConfig = true
+        buildConfig = true
     }
 
     defaultConfig {
@@ -20,7 +20,11 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
         // set SDK VERSION to publish version or fall back to 0.0.0 for development
-        buildConfigField("String", "STRIVACITY_SDK_VERSION", "\"${findProperty("sdkVersion") ?: "0.0.0"}\"")
+        buildConfigField(
+            "String",
+            "STRIVACITY_SDK_VERSION",
+            "\"${findProperty("sdkVersion") ?: "0.0.0"}\"",
+        )
     }
 
     buildTypes {
@@ -28,7 +32,7 @@ android {
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
         }
     }
@@ -93,7 +97,8 @@ publishing {
 
                 pom {
                     name = "Strivacity Android Native SDK using Kotlin"
-                    description = "Strivacity Journey-flow SDK for native clients on Android platforms using Kotlin"
+                    description =
+                        "Strivacity Journey-flow SDK for native clients on Android platforms using Kotlin"
                     url = "https://github.com/Strivacity/sdk-mobile-kotlin-native"
 
                     licenses {

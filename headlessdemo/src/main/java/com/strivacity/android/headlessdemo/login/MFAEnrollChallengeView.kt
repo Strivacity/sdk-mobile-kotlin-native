@@ -33,88 +33,102 @@ import com.strivacity.android.native_sdk.render.models.StaticWidget
 import kotlinx.coroutines.launch
 
 @Composable
-fun MFAEnrollChallengeView(screen: Screen, headlessAdapter: HeadlessAdapter) {
-  val messages by headlessAdapter.messages().collectAsState()
+fun MFAEnrollChallengeView(
+    screen: Screen,
+    headlessAdapter: HeadlessAdapter,
+) {
+    val messages by headlessAdapter.messages().collectAsState()
 
-  val coroutineScope = rememberCoroutineScope()
+    val coroutineScope = rememberCoroutineScope()
 
-  var passcode by remember { mutableStateOf("") }
+    var passcode by remember { mutableStateOf("") }
 
-  Column(
-      horizontalAlignment = Alignment.CenterHorizontally,
-      verticalArrangement = Arrangement.spacedBy(10.dp),
-      modifier = Modifier.fillMaxWidth().padding(35.dp)) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.fillMaxWidth().padding(35.dp),
+    ) {
         Text(
-            (screen.forms
+            (
+                screen.forms
                     ?.find { it.id == "mfaEnrollChallenge" }
                     ?.widgets
-                    ?.find { it.id == "section-title" } as StaticWidget?)
-                ?.value ?: "Verify your authenticator",
+                    ?.find { it.id == "section-title" } as StaticWidget?
+            )?.value ?: "Verify your authenticator",
             modifier = Modifier.fillMaxWidth(),
             fontSize = 24.sp,
-            fontWeight = FontWeight.W600)
+            fontWeight = FontWeight.W600,
+        )
 
         Text(
-            (screen.forms
+            (
+                screen.forms
                     ?.find { it.id == "mfaEnrollChallenge" }
                     ?.widgets
-                    ?.find { it.id == "we-sent-a-passcode-to" } as StaticWidget?)
-                ?.value ?: "",
-            modifier = Modifier.fillMaxWidth())
+                    ?.find { it.id == "we-sent-a-passcode-to" } as StaticWidget?
+            )?.value ?: "",
+            modifier = Modifier.fillMaxWidth(),
+        )
 
         TextField(
             value = passcode,
             onValueChange = { passcode = it },
             label = { Text("6-digit passcode") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.fillMaxWidth())
+            modifier = Modifier.fillMaxWidth(),
+        )
         val passcodeErrorMessage = messages?.errorMessageForWidget("mfaEnrollChallenge", "passcode")
         if (passcodeErrorMessage != null) {
-          Text(passcodeErrorMessage, color = Color.Red, modifier = Modifier.fillMaxWidth())
+            Text(passcodeErrorMessage, color = Color.Red, modifier = Modifier.fillMaxWidth())
         }
 
         Button(
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = StrivacityPrimary),
             onClick = {
-              coroutineScope.launch {
-                headlessAdapter.submit("mfaEnrollChallenge", mapOf("passcode" to passcode))
-              }
-            }) {
-              Text("Confirm")
-            }
+                coroutineScope.launch {
+                    headlessAdapter.submit("mfaEnrollChallenge", mapOf("passcode" to passcode))
+                }
+            },
+        ) {
+            Text("Confirm")
+        }
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center) {
-              Text("Didn't receive the email?")
-              TextButton(
-                  onClick = {
-                    coroutineScope.launch {
-                      headlessAdapter.submit("additionalActions/resend", mapOf())
-                    }
-                  }) {
-                    Text("Resend")
-                  }
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            Text("Didn't receive the email?")
+            TextButton(onClick = {
+                coroutineScope.launch {
+                    headlessAdapter.submit("additionalActions/resend", mapOf())
+                }
+            }) {
+                Text("Resend")
             }
+        }
 
         Button(
             modifier = Modifier.fillMaxWidth(),
             colors =
                 ButtonDefaults.buttonColors(
-                    containerColor = StrivacitySecondary, contentColor = Color.Black),
+                    containerColor = StrivacitySecondary,
+                    contentColor = Color.Black,
+                ),
             onClick = {
-              coroutineScope.launch {
-                headlessAdapter.submit("additionalActions/selectDifferentMethod", mapOf())
-              }
-            }) {
-              Text("Select different method to enroll")
-            }
+                coroutineScope.launch {
+                    headlessAdapter.submit("additionalActions/selectDifferentMethod", mapOf())
+                }
+            },
+        ) {
+            Text("Select different method to enroll")
+        }
 
         TextButton(
-            onClick = { coroutineScope.launch { headlessAdapter.submit("reset", mapOf()) } }) {
-              Text("Back to login")
-            }
-      }
+            onClick = { coroutineScope.launch { headlessAdapter.submit("reset", mapOf()) } },
+        ) {
+            Text("Back to login")
+        }
+    }
 }

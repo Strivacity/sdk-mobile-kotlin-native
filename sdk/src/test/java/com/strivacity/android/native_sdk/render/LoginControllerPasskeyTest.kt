@@ -41,7 +41,6 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 internal class LoginControllerPasskeyTest {
-
     private lateinit var fakeLogging: FakeLogging
     private lateinit var mockNativeSDK: NativeSDK
     private lateinit var mockLoginHandlerService: LoginHandlerService
@@ -63,8 +62,14 @@ internal class LoginControllerPasskeyTest {
      */
     private class FakeCredentialManagerProvider(
         private val activityContext: Activity?,
-        private val enroller: suspend (Activity, CreatePublicKeyCredentialRequest) -> CreatePublicKeyCredentialResponse = { _, _ -> throw UnsupportedOperationException() },
-        private val asserter: suspend (Activity, GetCredentialRequest) -> GetCredentialResponse = { _, _ -> throw UnsupportedOperationException() },
+        private val enroller: suspend (
+            Activity,
+            CreatePublicKeyCredentialRequest,
+        ) -> CreatePublicKeyCredentialResponse = { _, _ -> throw UnsupportedOperationException() },
+        private val asserter: suspend (
+            Activity,
+            GetCredentialRequest,
+        ) -> GetCredentialResponse = { _, _ -> throw UnsupportedOperationException() },
     ) : CredentialManagerProvider {
         override fun activityContext(): Activity? = activityContext
 
@@ -81,17 +86,21 @@ internal class LoginControllerPasskeyTest {
 
     private fun buildEnrollController(
         activityContext: Activity?,
-        enroller: suspend (Activity, CreatePublicKeyCredentialRequest) -> CreatePublicKeyCredentialResponse,
+        enroller: suspend (
+            Activity,
+            CreatePublicKeyCredentialRequest,
+        ) -> CreatePublicKeyCredentialResponse,
     ) = LoginController(
         nativeSDK = mockNativeSDK,
         loginHandlerService = mockLoginHandlerService,
         oidcParams = OidcParams(onSuccess = {}, onError = {}),
         fallbackHandler = {},
         logging = fakeLogging,
-        credentialManagerProvider = FakeCredentialManagerProvider(
-            activityContext = activityContext,
-            enroller = enroller,
-        ),
+        credentialManagerProvider =
+            FakeCredentialManagerProvider(
+                activityContext = activityContext,
+                enroller = enroller,
+            ),
     )
 
     private fun buildAssertController(
@@ -103,88 +112,99 @@ internal class LoginControllerPasskeyTest {
         oidcParams = OidcParams(onSuccess = {}, onError = {}),
         fallbackHandler = {},
         logging = fakeLogging,
-        credentialManagerProvider = FakeCredentialManagerProvider(
-            activityContext = activityContext,
-            asserter = asserter,
-        ),
+        credentialManagerProvider =
+            FakeCredentialManagerProvider(
+                activityContext = activityContext,
+                asserter = asserter,
+            ),
     )
 
-    private val fakeEnrollOptions = EnrollOptions(
-        rp = EnrollOptions.Rp(id = "example.com", name = "Example"),
-        user = EnrollOptions.User(id = "dXNlcjE=", name = "User One", displayName = "User One"),
-        challenge = "Y2hhbGxlbmdl",
-        pubKeyCredParams = listOf(EnrollOptions.PubKeyCredParam(type = "public-key", alg = -7)),
-        excludeCredentials = emptyList(),
-        authenticatorSelection = EnrollOptions.AuthenticatorSelection(
-            authenticatorAttachment = null,
-            requireResidentKey = null,
-            residentKey = "preferred",
+    private val fakeEnrollOptions =
+        EnrollOptions(
+            rp = EnrollOptions.Rp(id = "example.com", name = "Example"),
+            user = EnrollOptions.User(id = "dXNlcjE=", name = "User One", displayName = "User One"),
+            challenge = "Y2hhbGxlbmdl",
+            pubKeyCredParams = listOf(EnrollOptions.PubKeyCredParam(type = "public-key", alg = -7)),
+            excludeCredentials = emptyList(),
+            authenticatorSelection =
+                EnrollOptions.AuthenticatorSelection(
+                    authenticatorAttachment = null,
+                    requireResidentKey = null,
+                    residentKey = "preferred",
+                    userVerification = "required",
+                ),
+            attestation = "none",
+        )
+
+    private val fakeAssertionOptions =
+        AssertionOptions(
+            allowCredentials = emptyList(),
+            challenge = "Y2hhbGxlbmdl",
+            rpId = "example.com",
             userVerification = "required",
-        ),
-        attestation = "none",
-    )
+            timeout = null,
+        )
 
-    private val fakeAssertionOptions = AssertionOptions(
-        allowCredentials = emptyList(),
-        challenge = "Y2hhbGxlbmdl",
-        rpId = "example.com",
-        userVerification = "required",
-        timeout = null,
-    )
-
-    private fun passkeyEnrollScreen() = Screen(
-        screen = "passkey-enroll",
-        branding = null,
-        hostedUrl = "https://example.com/hosted",
-        finalizeUrl = null,
-        forms = listOf(
-            FormWidget(
-                id = "passkeyEnroll",
-                widgets = listOf(
-                    PasskeyEnrollWidget(
-                        id = "passkeyEnroll.credential",
-                        label = "Register passkey",
-                        render = null,
-                        enrollOptions = fakeEnrollOptions,
+    private fun passkeyEnrollScreen() =
+        Screen(
+            screen = "passkey-enroll",
+            branding = null,
+            hostedUrl = "https://example.com/hosted",
+            finalizeUrl = null,
+            forms =
+                listOf(
+                    FormWidget(
+                        id = "passkeyEnroll",
+                        widgets =
+                            listOf(
+                                PasskeyEnrollWidget(
+                                    id = "passkeyEnroll.credential",
+                                    label = "Register passkey",
+                                    render = null,
+                                    enrollOptions = fakeEnrollOptions,
+                                ),
+                            ),
                     ),
                 ),
-            ),
-        ),
-        layout = null,
-        messages = null,
-    )
+            layout = null,
+            messages = null,
+        )
 
-    private fun passkeyLoginScreen() = Screen(
-        screen = "passkey-login",
-        branding = null,
-        hostedUrl = "https://example.com/hosted",
-        finalizeUrl = null,
-        forms = listOf(
-            FormWidget(
-                id = "passkey",
-                widgets = listOf(
-                    PasskeyLoginWidget(
-                        id = "passkey.credential",
-                        label = "Sign in with passkey",
-                        render = null,
-                        assertionOptions = fakeAssertionOptions,
+    private fun passkeyLoginScreen() =
+        Screen(
+            screen = "passkey-login",
+            branding = null,
+            hostedUrl = "https://example.com/hosted",
+            finalizeUrl = null,
+            forms =
+                listOf(
+                    FormWidget(
+                        id = "passkey",
+                        widgets =
+                            listOf(
+                                PasskeyLoginWidget(
+                                    id = "passkey.credential",
+                                    label = "Sign in with passkey",
+                                    render = null,
+                                    assertionOptions = fakeAssertionOptions,
+                                ),
+                            ),
                     ),
                 ),
-            ),
-        ),
-        layout = null,
-        messages = null,
-    )
+            layout = null,
+            messages = null,
+        )
 
-    private fun finalizeScreen() = Screen(
-        screen = null,
-        branding = null,
-        hostedUrl = null,
-        finalizeUrl = "https://example.com/finalize",
-        forms = null,
-        layout = null,
-        messages = null,
-    )
+    private fun finalizeScreen() =
+        Screen(
+            screen = null,
+            branding = null,
+            hostedUrl = null,
+            finalizeUrl = "https://example.com/finalize",
+            forms = null,
+            layout = null,
+            messages = null,
+        )
 
     // Realistic enough JSON shapes to satisfy Json.parseToJsonElement in the controller
     private val fakeRegistrationJson =
@@ -198,9 +218,10 @@ internal class LoginControllerPasskeyTest {
 
     @Test
     fun passkeyEnroll_shouldPerformEnrollment_andStoreRegistrationResponse() {
-        val createResponse = CreatePublicKeyCredentialResponse(
-            registrationResponseJson = fakeRegistrationJson,
-        )
+        val createResponse =
+            CreatePublicKeyCredentialResponse(
+                registrationResponseJson = fakeRegistrationJson,
+            )
         val controller = buildEnrollController(activity) { _, _ -> createResponse }
 
         runBlocking {
@@ -211,19 +232,24 @@ internal class LoginControllerPasskeyTest {
             controller.submit("passkeyEnroll", body = mapOf("target" to "TestDevice"))
         }
 
-        val storedValue = controller
-            .stateForWidget("passkeyEnroll", "passkeyEnroll.credential", Json.parseToJsonElement("{}"))
-            .value
+        val storedValue =
+            controller
+                .stateForWidget(
+                    "passkeyEnroll",
+                    "passkeyEnroll.credential",
+                    Json.parseToJsonElement("{}"),
+                ).value
         assertNotNull(
             "Expected registration response to be stored in widget state",
             storedValue,
         )
 
         val expectedCredential = Json.parseToJsonElement(fakeRegistrationJson)
-        val expectedPayload = mapOf(
-            "passkeyEnroll" to mapOf("credential" to expectedCredential),
-            "target" to "TestDevice",
-        )
+        val expectedPayload =
+            mapOf(
+                "passkeyEnroll" to mapOf("credential" to expectedCredential),
+                "target" to "TestDevice",
+            )
         runBlocking {
             verify(mockLoginHandlerService).submitForm(
                 eq("passkeyEnroll"),
@@ -235,15 +261,17 @@ internal class LoginControllerPasskeyTest {
     @Test
     fun passkeyEnroll_shouldRecoverAndEnrollSuccessfully_whenPromptIsCancelledOnFirstAttempt() {
         var callCount = 0
-        val createResponse = CreatePublicKeyCredentialResponse(
-            registrationResponseJson = fakeRegistrationJson,
-        )
+        val createResponse =
+            CreatePublicKeyCredentialResponse(
+                registrationResponseJson = fakeRegistrationJson,
+            )
         // First call simulates the user dismissing the system prompt; second call succeeds.
-        val controller = buildEnrollController(activity) { _, _ ->
-            callCount++
-            if (callCount == 1) throw CreateCredentialCancellationException()
-            createResponse
-        }
+        val controller =
+            buildEnrollController(activity) { _, _ ->
+                callCount++
+                if (callCount == 1) throw CreateCredentialCancellationException()
+                createResponse
+            }
 
         runBlocking {
             whenever(mockLoginHandlerService.initCall()).thenReturn(passkeyEnrollScreen())
@@ -275,19 +303,24 @@ internal class LoginControllerPasskeyTest {
         }
 
         // The registration response must be stored in widget state after the successful attempt.
-        val storedValue = controller
-            .stateForWidget("passkeyEnroll", "passkeyEnroll.credential", Json.parseToJsonElement("{}"))
-            .value
+        val storedValue =
+            controller
+                .stateForWidget(
+                    "passkeyEnroll",
+                    "passkeyEnroll.credential",
+                    Json.parseToJsonElement("{}"),
+                ).value
         assertNotNull(
             "Expected registration response to be stored in widget state after retry",
             storedValue,
         )
 
         val expectedCredential = Json.parseToJsonElement(fakeRegistrationJson)
-        val expectedPayload = mapOf(
-            "passkeyEnroll" to mapOf("credential" to expectedCredential),
-            "target" to "TestDevice",
-        )
+        val expectedPayload =
+            mapOf(
+                "passkeyEnroll" to mapOf("credential" to expectedCredential),
+                "target" to "TestDevice",
+            )
         runBlocking {
             // submitForm must be called exactly once – only from the successful second attempt.
             verify(mockLoginHandlerService).submitForm(
@@ -305,9 +338,13 @@ internal class LoginControllerPasskeyTest {
 
     @Test
     fun passkeyAssertion_shouldPerformAssertion_andStoreAuthenticationResponse() {
-        val getResponse = GetCredentialResponse(
-            credential = PublicKeyCredential(authenticationResponseJson = fakeAuthenticationJson),
-        )
+        val getResponse =
+            GetCredentialResponse(
+                credential =
+                    PublicKeyCredential(
+                        authenticationResponseJson = fakeAuthenticationJson,
+                    ),
+            )
         val controller = buildAssertController(activity) { _, _ -> getResponse }
 
         runBlocking {
@@ -318,9 +355,10 @@ internal class LoginControllerPasskeyTest {
             controller.submit("passkey")
         }
 
-        val storedValue = controller
-            .stateForWidget("passkey", "passkey.credential", Json.parseToJsonElement("{}"))
-            .value
+        val storedValue =
+            controller
+                .stateForWidget("passkey", "passkey.credential", Json.parseToJsonElement("{}"))
+                .value
         assertNotNull(
             "Expected authentication response to be stored in widget state",
             storedValue,
@@ -333,9 +371,10 @@ internal class LoginControllerPasskeyTest {
 
     @Test
     fun passkeyEnroll_shouldThrowPlatformError_whenCreateCredentialThrows() {
-        val controller = buildEnrollController(activity) { _, _ ->
-            throw CreateCredentialCancellationException()
-        }
+        val controller =
+            buildEnrollController(activity) { _, _ ->
+                throw CreateCredentialCancellationException()
+            }
 
         runBlocking {
             whenever(mockLoginHandlerService.initCall()).thenReturn(passkeyEnrollScreen())
@@ -352,9 +391,10 @@ internal class LoginControllerPasskeyTest {
 
     @Test
     fun passkeyAssertion_shouldThrowPlatformError_whenGetCredentialThrows() {
-        val controller = buildAssertController(activity) { _, _ ->
-            throw GetCredentialCancellationException()
-        }
+        val controller =
+            buildAssertController(activity) { _, _ ->
+                throw GetCredentialCancellationException()
+            }
 
         runBlocking {
             whenever(mockLoginHandlerService.initCall()).thenReturn(passkeyLoginScreen())
@@ -375,9 +415,10 @@ internal class LoginControllerPasskeyTest {
 
     @Test
     fun passkeyEnroll_shouldLogNonMainThreadWarning_whenInvokedFromIODispatcher() {
-        val createResponse = CreatePublicKeyCredentialResponse(
-            registrationResponseJson = fakeRegistrationJson,
-        )
+        val createResponse =
+            CreatePublicKeyCredentialResponse(
+                registrationResponseJson = fakeRegistrationJson,
+            )
         val controller = buildEnrollController(activity) { _, _ -> createResponse }
 
         runBlocking {
@@ -399,9 +440,13 @@ internal class LoginControllerPasskeyTest {
 
     @Test
     fun passkeyAssertion_shouldLogNonMainThreadWarning_whenInvokedFromIODispatcher() {
-        val getResponse = GetCredentialResponse(
-            credential = PublicKeyCredential(authenticationResponseJson = fakeAuthenticationJson),
-        )
+        val getResponse =
+            GetCredentialResponse(
+                credential =
+                    PublicKeyCredential(
+                        authenticationResponseJson = fakeAuthenticationJson,
+                    ),
+            )
         val controller = buildAssertController(activity) { _, _ -> getResponse }
 
         runBlocking {
@@ -427,7 +472,10 @@ internal class LoginControllerPasskeyTest {
 
     @Test
     fun passkeyEnroll_shouldThrowIllegalArgumentException_whenContextIsNull() {
-        val controller = buildEnrollController(activityContext = null) { _, _ -> throw UnsupportedOperationException() }
+        val controller =
+            buildEnrollController(
+                activityContext = null,
+            ) { _, _ -> throw UnsupportedOperationException() }
 
         runBlocking {
             whenever(mockLoginHandlerService.initCall()).thenReturn(passkeyEnrollScreen())
@@ -444,7 +492,10 @@ internal class LoginControllerPasskeyTest {
 
     @Test
     fun passkeyAssertion_shouldThrowIllegalArgumentException_whenContextIsNull() {
-        val controller = buildAssertController(activityContext = null) { _, _ -> throw UnsupportedOperationException() }
+        val controller =
+            buildAssertController(
+                activityContext = null,
+            ) { _, _ -> throw UnsupportedOperationException() }
 
         runBlocking {
             whenever(mockLoginHandlerService.initCall()).thenReturn(passkeyLoginScreen())

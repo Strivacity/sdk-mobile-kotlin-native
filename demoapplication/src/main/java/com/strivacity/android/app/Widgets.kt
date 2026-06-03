@@ -83,33 +83,86 @@ fun Widget(
     screen: Screen,
     widget: Widget,
     formId: String,
-    widgetId: String
+    widgetId: String,
 ) {
-  when (widget) {
-    is CheckboxWidget -> CheckboxWidget(loginController, screen, widget, formId, widgetId)
-    is CloseWidget -> CloseWidget(loginController, screen, widget, formId, widgetId)
-    is DateWidget -> DateWidget(loginController, screen, widget, formId, widgetId)
-    is InputWidget -> InputWidget(loginController, screen, widget, formId, widgetId)
-    is MultiSelectWidget -> MultiSelectWidget(loginController, screen, widget, formId, widgetId)
-    is PasscodeWidget -> PasscodeWidget(loginController, screen, widget, formId, widgetId)
-    is PasswordWidget -> PasswordWidget(loginController, screen, widget, formId, widgetId)
-    is PhoneWidget -> PhoneWidget(loginController, screen, widget, formId, widgetId)
-    is SelectWidget -> SelectWidget(loginController, screen, widget, formId, widgetId)
-    is StaticWidget -> StaticWidget(loginController, screen, widget, formId, widgetId)
-    is SubmitWidget -> SubmitWidget(loginController, screen, widget, formId, widgetId)
-    is PasskeyEnrollWidget -> PasskeyEnrollWidget(loginController, screen, widget, formId, widgetId)
-    is PasskeyLoginWidget -> PasskeyLoginWidget(loginController, screen, widget, formId, widgetId)
-    is WebauthnEnrollWidget -> WebauthnEnrollWidget(loginController, screen, widget, formId, widgetId)
-    is WebauthnLoginWidget -> WebauthnLoginWidget(loginController, screen, widget, formId, widgetId)
-    else -> loginController.triggerFallback()
-  }
+    when (widget) {
+        is CheckboxWidget -> {
+            CheckboxWidget(loginController, screen, widget, formId, widgetId)
+        }
 
-  val messages by loginController.messages.collectAsState()
+        is CloseWidget -> {
+            CloseWidget(loginController, screen, widget, formId, widgetId)
+        }
 
-  val errorMessage = messages?.errorMessageForWidget(formId, widgetId)
-  if (errorMessage != null) {
-    Text(errorMessage, color = Color.Red)
-  }
+        is DateWidget -> {
+            DateWidget(loginController, screen, widget, formId, widgetId)
+        }
+
+        is InputWidget -> {
+            InputWidget(loginController, screen, widget, formId, widgetId)
+        }
+
+        is MultiSelectWidget -> {
+            MultiSelectWidget(loginController, screen, widget, formId, widgetId)
+        }
+
+        is PasscodeWidget -> {
+            PasscodeWidget(loginController, screen, widget, formId, widgetId)
+        }
+
+        is PasswordWidget -> {
+            PasswordWidget(loginController, screen, widget, formId, widgetId)
+        }
+
+        is PhoneWidget -> {
+            PhoneWidget(loginController, screen, widget, formId, widgetId)
+        }
+
+        is SelectWidget -> {
+            SelectWidget(loginController, screen, widget, formId, widgetId)
+        }
+
+        is StaticWidget -> {
+            StaticWidget(loginController, screen, widget, formId, widgetId)
+        }
+
+        is SubmitWidget -> {
+            SubmitWidget(loginController, screen, widget, formId, widgetId)
+        }
+
+        is PasskeyEnrollWidget -> {
+            PasskeyEnrollWidget(loginController, screen, widget, formId, widgetId)
+        }
+
+        is PasskeyLoginWidget -> {
+            PasskeyLoginWidget(loginController, screen, widget, formId, widgetId)
+        }
+
+        is WebauthnEnrollWidget -> {
+            WebauthnEnrollWidget(
+                loginController,
+                screen,
+                widget,
+                formId,
+                widgetId,
+            )
+        }
+
+        is WebauthnLoginWidget -> {
+            WebauthnLoginWidget(loginController, screen, widget, formId, widgetId)
+        }
+
+        else -> {
+            loginController.triggerFallback()
+        }
+    }
+
+    val messages by loginController.messages.collectAsState()
+
+    val errorMessage = messages?.errorMessageForWidget(formId, widgetId)
+    if (errorMessage != null) {
+        Text(errorMessage, color = Color.Red)
+    }
 }
 
 @Composable
@@ -118,9 +171,9 @@ fun StaticWidget(
     screen: Screen,
     widget: StaticWidget,
     formId: String,
-    widgetId: String
+    widgetId: String,
 ) {
-  TextWithType(loginController, widget.render?.type, widget.value)
+    TextWithType(loginController, widget.render?.type, widget.value)
 }
 
 @Composable
@@ -129,32 +182,33 @@ fun InputWidget(
     screen: Screen,
     widget: InputWidget,
     formId: String,
-    widgetId: String
+    widgetId: String,
 ) {
-  val stateForWidget = loginController.stateForWidget<String?>(formId, widgetId, null)
-  val value by stateForWidget.collectAsState()
+    val stateForWidget = loginController.stateForWidget<String?>(formId, widgetId, null)
+    val value by stateForWidget.collectAsState()
 
-  val processing by loginController.processing.collectAsState()
+    val processing by loginController.processing.collectAsState()
 
-  val keyboardOptions =
-      when (widget.inputmode) {
-        "email" -> KeyboardOptions(keyboardType = KeyboardType.Email)
-        else -> KeyboardOptions()
-      }
+    val keyboardOptions =
+        when (widget.inputmode) {
+            "email" -> KeyboardOptions(keyboardType = KeyboardType.Email)
+            else -> KeyboardOptions()
+        }
 
-  val modifier =
-      when (widget.autocomplete) {
-        "username" -> Modifier.semantics { contentType = ContentType.Username }
-        else -> Modifier.semantics {}
-      }
+    val modifier =
+        when (widget.autocomplete) {
+            "username" -> Modifier.semantics { contentType = ContentType.Username }
+            else -> Modifier.semantics {}
+        }
 
-  TextField(
-      value = value ?: "",
-      onValueChange = { stateForWidget.value = it },
-      label = { Text(widget.label) },
-      enabled = !processing,
-      keyboardOptions = keyboardOptions,
-      modifier = modifier)
+    TextField(
+        value = value ?: "",
+        onValueChange = { stateForWidget.value = it },
+        label = { Text(widget.label) },
+        enabled = !processing,
+        keyboardOptions = keyboardOptions,
+        modifier = modifier,
+    )
 }
 
 @Composable
@@ -163,18 +217,18 @@ fun SubmitWidget(
     screen: Screen,
     widget: SubmitWidget,
     formId: String,
-    widgetId: String
+    widgetId: String,
 ) {
-  val coroutineScope = rememberCoroutineScope()
+    val coroutineScope = rememberCoroutineScope()
 
-  val processing by loginController.processing.collectAsState()
+    val processing by loginController.processing.collectAsState()
 
-  val onClick: () -> Unit = { coroutineScope.launch { loginController.submit(formId) } }
-  when (widget.render?.type) {
-    "button" -> Button(onClick = onClick, enabled = !processing) { Text(widget.label) }
-    "link" -> TextButton(onClick = onClick, enabled = !processing) { Text(widget.label) }
-    else -> loginController.triggerFallback()
-  }
+    val onClick: () -> Unit = { coroutineScope.launch { loginController.submit(formId) } }
+    when (widget.render?.type) {
+        "button" -> Button(onClick = onClick, enabled = !processing) { Text(widget.label) }
+        "link" -> TextButton(onClick = onClick, enabled = !processing) { Text(widget.label) }
+        else -> loginController.triggerFallback()
+    }
 }
 
 @Composable
@@ -183,18 +237,18 @@ fun CloseWidget(
     screen: Screen,
     widget: CloseWidget,
     formId: String,
-    widgetId: String
+    widgetId: String,
 ) {
-  val coroutineScope = rememberCoroutineScope()
+    val coroutineScope = rememberCoroutineScope()
 
-  val processing by loginController.processing.collectAsState()
+    val processing by loginController.processing.collectAsState()
 
-  val onClick: () -> Unit = { coroutineScope.launch { loginController.close() } }
-  when (widget.render?.type) {
-    "button" -> Button(onClick = onClick, enabled = !processing) { Text(widget.label) }
-    "link" -> TextButton(onClick = onClick, enabled = !processing) { Text(widget.label) }
-    else -> loginController.triggerFallback()
-  }
+    val onClick: () -> Unit = { coroutineScope.launch { loginController.close() } }
+    when (widget.render?.type) {
+        "button" -> Button(onClick = onClick, enabled = !processing) { Text(widget.label) }
+        "link" -> TextButton(onClick = onClick, enabled = !processing) { Text(widget.label) }
+        else -> loginController.triggerFallback()
+    }
 }
 
 @Composable
@@ -203,24 +257,30 @@ fun CheckboxWidget(
     screen: Screen,
     widget: CheckboxWidget,
     formId: String,
-    widgetId: String
+    widgetId: String,
 ) {
-  val stateForWidget = loginController.stateForWidget(formId, widgetId, false)
-  val value by stateForWidget.collectAsState()
+    val stateForWidget = loginController.stateForWidget(formId, widgetId, false)
+    val value by stateForWidget.collectAsState()
 
-  val processing by loginController.processing.collectAsState()
+    val processing by loginController.processing.collectAsState()
 
-  Row(verticalAlignment = Alignment.CenterVertically) {
-    when (widget.render?.type) {
-      "checkboxShown" -> Checkbox(value, { stateForWidget.value = it }, enabled = !processing)
-      "checkboxHidden" -> {
-        LaunchedEffect(Unit) { stateForWidget.value = true }
-      }
-      else -> loginController.triggerFallback()
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        when (widget.render?.type) {
+            "checkboxShown" -> {
+                Checkbox(value, { stateForWidget.value = it }, enabled = !processing)
+            }
+
+            "checkboxHidden" -> {
+                LaunchedEffect(Unit) { stateForWidget.value = true }
+            }
+
+            else -> {
+                loginController.triggerFallback()
+            }
+        }
+
+        TextWithType(loginController, widget.render?.labelType, widget.label)
     }
-
-    TextWithType(loginController, widget.render?.labelType, widget.label)
-  }
 }
 
 @Composable
@@ -229,20 +289,21 @@ fun PasswordWidget(
     screen: Screen,
     widget: PasswordWidget,
     formId: String,
-    widgetId: String
+    widgetId: String,
 ) {
-  val stateForWidget = loginController.stateForWidget(formId, widgetId, "")
-  val value by stateForWidget.collectAsState()
+    val stateForWidget = loginController.stateForWidget(formId, widgetId, "")
+    val value by stateForWidget.collectAsState()
 
-  val processing by loginController.processing.collectAsState()
+    val processing by loginController.processing.collectAsState()
 
-  TextField(
-      value = value,
-      onValueChange = { stateForWidget.value = it },
-      label = { Text(widget.label) },
-      visualTransformation = PasswordVisualTransformation(),
-      keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-      enabled = !processing)
+    TextField(
+        value = value,
+        onValueChange = { stateForWidget.value = it },
+        label = { Text(widget.label) },
+        visualTransformation = PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+        enabled = !processing,
+    )
 }
 
 @Composable
@@ -251,20 +312,21 @@ fun PasscodeWidget(
     screen: Screen,
     widget: PasscodeWidget,
     formId: String,
-    widgetId: String
+    widgetId: String,
 ) {
-  val stateForWidget = loginController.stateForWidget(formId, widgetId, "")
-  val value by stateForWidget.collectAsState()
+    val stateForWidget = loginController.stateForWidget(formId, widgetId, "")
+    val value by stateForWidget.collectAsState()
 
-  val processing by loginController.processing.collectAsState()
+    val processing by loginController.processing.collectAsState()
 
-  TextField(
-      value = value,
-      onValueChange = { stateForWidget.value = it },
-      label = { Text(widget.label) },
-      keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-      enabled = !processing,
-      modifier = Modifier.semantics { contentType = ContentType.SmsOtpCode })
+    TextField(
+        value = value,
+        onValueChange = { stateForWidget.value = it },
+        label = { Text(widget.label) },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        enabled = !processing,
+        modifier = Modifier.semantics { contentType = ContentType.SmsOtpCode },
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -274,89 +336,98 @@ fun SelectWidget(
     screen: Screen,
     widget: SelectWidget,
     formId: String,
-    widgetId: String
+    widgetId: String,
 ) {
-  val stateForWidget = loginController.stateForWidget<String?>(formId, widgetId, null)
-  val value by stateForWidget.collectAsState()
+    val stateForWidget = loginController.stateForWidget<String?>(formId, widgetId, null)
+    val value by stateForWidget.collectAsState()
 
-  val processing by loginController.processing.collectAsState()
+    val processing by loginController.processing.collectAsState()
 
-  when (widget.render?.type) {
-    "radio" -> {
-      Column(modifier = Modifier.selectableGroup()) {
-        if (widget.label != null) {
-          Row { Text(widget.label!!) }
-        }
+    when (widget.render?.type) {
+        "radio" -> {
+            Column(modifier = Modifier.selectableGroup()) {
+                if (widget.label != null) {
+                    Row { Text(widget.label!!) }
+                }
 
-        widget.options.forEach {
-          SelectWidgetRadioOption(loginController, screen, widget, it, formId, widgetId)
-        }
-      }
-    }
-    "dropdown" -> {
-      Column {
-        val options = flattenOptions(widget.options)
-        var expanded by remember { mutableStateOf(false) }
-        var label by remember { mutableStateOf<String?>(null) }
-
-        if (value != null) {
-          label = options.find { it.value == value }?.label
-        }
-
-        ExposedDropdownMenuBox(
-            expanded = expanded,
-            onExpandedChange = { expanded = it },
-        ) {
-          TextField(
-              modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable),
-              value = label ?: "",
-              onValueChange = {},
-              readOnly = true,
-              label = { Text(widget.label ?: "") },
-              trailingIcon = {
-                ExposedDropdownMenuDefaults.TrailingIcon(
-                    expanded = expanded,
-                    modifier = Modifier.menuAnchor(MenuAnchorType.SecondaryEditable),
-                )
-              },
-              colors = ExposedDropdownMenuDefaults.textFieldColors(),
-          )
-          ExposedDropdownMenu(
-              expanded = expanded,
-              onDismissRequest = { expanded = false },
-          ) {
-            options.forEach { option ->
-              DropdownMenuItem(
-                  text = { Text(option.label ?: "", style = MaterialTheme.typography.bodyLarge) },
-                  onClick = {
-                    if (option.value != null) {
-                      stateForWidget.value = option.value!!
-                      label = option.label
-                    }
-                  },
-                  contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
-              )
+                widget.options.forEach {
+                    SelectWidgetRadioOption(loginController, screen, widget, it, formId, widgetId)
+                }
             }
-          }
         }
-      }
+
+        "dropdown" -> {
+            Column {
+                val options = flattenOptions(widget.options)
+                var expanded by remember { mutableStateOf(false) }
+                var label by remember { mutableStateOf<String?>(null) }
+
+                if (value != null) {
+                    label = options.find { it.value == value }?.label
+                }
+
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = it },
+                ) {
+                    TextField(
+                        modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable),
+                        value = label ?: "",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(widget.label ?: "") },
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(
+                                expanded = expanded,
+                                modifier = Modifier.menuAnchor(MenuAnchorType.SecondaryEditable),
+                            )
+                        },
+                        colors = ExposedDropdownMenuDefaults.textFieldColors(),
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false },
+                    ) {
+                        options.forEach { option ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        option.label ?: "",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                    )
+                                },
+                                onClick = {
+                                    if (option.value != null) {
+                                        stateForWidget.value = option.value!!
+                                        label = option.label
+                                    }
+                                },
+                                contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        else -> {
+            loginController.triggerFallback()
+        }
     }
-    else -> loginController.triggerFallback()
-  }
 }
 
 fun flattenOptions(from: List<SelectWidget.Option>): MutableList<SelectWidget.Option> {
-  val list = mutableListOf<SelectWidget.Option>()
+    val list = mutableListOf<SelectWidget.Option>()
 
-  from.forEach {
-    list.add(it)
+    from.forEach {
+        list.add(it)
 
-    if (it.type == "group" && it.options != null) {
-      list.addAll(flattenOptions(it.options!!))
+        if (it.type == "group" && it.options != null) {
+            list.addAll(flattenOptions(it.options!!))
+        }
     }
-  }
 
-  return list
+    return list
 }
 
 @Composable
@@ -366,37 +437,46 @@ fun SelectWidgetRadioOption(
     widget: SelectWidget,
     widgetOption: SelectWidget.Option,
     formId: String,
-    widgetId: String
+    widgetId: String,
 ) {
-  val stateForWidget = loginController.stateForWidget(formId, widgetId, "")
-  val value by stateForWidget.collectAsState()
+    val stateForWidget = loginController.stateForWidget(formId, widgetId, "")
+    val value by stateForWidget.collectAsState()
 
-  val processing by loginController.processing.collectAsState()
+    val processing by loginController.processing.collectAsState()
 
-  when (widgetOption.type) {
-    "group" -> {
-      if (widgetOption.label != null) {
-        Row { Text(widgetOption.label!!) }
-      }
-      widgetOption.options?.forEach {
-        SelectWidgetRadioOption(loginController, screen, widget, it, formId, widgetId)
-      }
+    when (widgetOption.type) {
+        "group" -> {
+            if (widgetOption.label != null) {
+                Row { Text(widgetOption.label!!) }
+            }
+            widgetOption.options?.forEach {
+                SelectWidgetRadioOption(loginController, screen, widget, it, formId, widgetId)
+            }
+        }
+
+        "item" -> {
+            Row(
+                modifier =
+                    Modifier.selectable(
+                        selected = (widgetOption.value == value),
+                        onClick = { stateForWidget.value = widgetOption.value!! },
+                        role = Role.RadioButton,
+                    ),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                RadioButton(
+                    selected = (widgetOption.value == value),
+                    onClick = null,
+                    enabled = !processing,
+                )
+                Text(text = widgetOption.label ?: "")
+            }
+        }
+
+        else -> {
+            loginController.triggerFallback()
+        }
     }
-    "item" -> {
-      Row(
-          modifier =
-              Modifier.selectable(
-                  selected = (widgetOption.value == value),
-                  onClick = { stateForWidget.value = widgetOption.value!! },
-                  role = Role.RadioButton),
-          verticalAlignment = Alignment.CenterVertically) {
-            RadioButton(
-                selected = (widgetOption.value == value), onClick = null, enabled = !processing)
-            Text(text = widgetOption.label ?: "")
-          }
-    }
-    else -> loginController.triggerFallback()
-  }
 }
 
 @Composable
@@ -405,37 +485,38 @@ fun MultiSelectWidget(
     screen: Screen,
     widget: MultiSelectWidget,
     formId: String,
-    widgetId: String
+    widgetId: String,
 ) {
-  val stateForWidget =
-      loginController.stateForWidget<MutableList<String>>(formId, widgetId, mutableListOf())
-  val value by stateForWidget.collectAsState()
+    val stateForWidget =
+        loginController.stateForWidget<MutableList<String>>(formId, widgetId, mutableListOf())
+    val value by stateForWidget.collectAsState()
 
-  val processing by loginController.processing.collectAsState()
+    val processing by loginController.processing.collectAsState()
 
-  Column(modifier = Modifier.selectableGroup()) {
-    Row { Text(widget.label) }
+    Column(modifier = Modifier.selectableGroup()) {
+        Row { Text(widget.label) }
 
-    widget.options.forEach { option ->
-      Row(verticalAlignment = Alignment.CenterVertically) {
-        Checkbox(
-            value.contains(option.value),
-            {
-              val list = stateForWidget.value.toMutableList()
+        widget.options.forEach { option ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(
+                    value.contains(option.value),
+                    {
+                        val list = stateForWidget.value.toMutableList()
 
-              if (it) {
-                list.add(option.value)
-              } else {
-                list.remove(option.value)
-              }
+                        if (it) {
+                            list.add(option.value)
+                        } else {
+                            list.remove(option.value)
+                        }
 
-              stateForWidget.value = list
-            },
-            enabled = !processing)
-        Text(option.label)
-      }
+                        stateForWidget.value = list
+                    },
+                    enabled = !processing,
+                )
+                Text(option.label)
+            }
+        }
     }
-  }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -445,130 +526,145 @@ fun DateWidget(
     screen: Screen,
     widget: DateWidget,
     formId: String,
-    widgetId: String
+    widgetId: String,
 ) {
-  val stateForWidget = loginController.stateForWidget<String?>(formId, widgetId, null)
-  val value by stateForWidget.collectAsState()
+    val stateForWidget = loginController.stateForWidget<String?>(formId, widgetId, null)
+    val value by stateForWidget.collectAsState()
 
-  val processing by loginController.processing.collectAsState()
+    val processing by loginController.processing.collectAsState()
 
-  when (widget.render?.type) {
-    "native" -> {
-      var showDatePicker by remember { mutableStateOf(false) }
-      val datePickerState = rememberDatePickerState()
+    when (widget.render?.type) {
+        "native" -> {
+            var showDatePicker by remember { mutableStateOf(false) }
+            val datePickerState = rememberDatePickerState()
 
-      LaunchedEffect(Unit) {
-        if (value != null) {
-          datePickerState.selectedDateMillis = convertDateToMillis(value!!)
-        }
-      }
-
-      Box {
-        TextField(
-            value = value ?: "",
-            onValueChange = {},
-            label = { Text(widget.label ?: "") },
-            readOnly = true,
-            trailingIcon = {
-              IconButton(onClick = { showDatePicker = !showDatePicker }, enabled = !processing) {
-                Icon(imageVector = Icons.Default.DateRange, contentDescription = null)
-              }
-            })
-
-        if (showDatePicker) {
-          Popup(
-              onDismissRequest = {
-                showDatePicker = false
-                stateForWidget.value =
-                    datePickerState.selectedDateMillis?.let { convertMillisToDate(it) }
-              },
-              alignment = Alignment.TopStart) {
-                Box { DatePicker(state = datePickerState, showModeToggle = false) }
-              }
-        }
-      }
-    }
-    "fieldSet" -> {
-      var year by remember { mutableStateOf("") }
-      var month by remember { mutableStateOf("") }
-      var day by remember { mutableStateOf("") }
-
-      LaunchedEffect(Unit) {
-        if (value != null) {
-          val split = value!!.split("-")
-          if (split.size == 3) {
-            year = split[0]
-            month = split[1]
-            day = split[2]
-          }
-        }
-      }
-
-      val afterValueChange = {
-        if (year == "" || month == "" || day == "") {
-          stateForWidget.value = null
-        } else {
-          try {
-            val milis =
-                LocalDate.of(year.toInt(), month.toInt(), day.toInt())
-                    .atStartOfDay(ZoneId.of("UTC"))
-                    .toInstant()
-                    .toEpochMilli()
-            stateForWidget.value = convertMillisToDate(milis)
-          } catch (e: Exception) {
-            stateForWidget.value = null
-          }
-        }
-      }
-
-      Column(
-          modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Row { Text(widget.label ?: "") }
-
-            Row {
-              TextField(
-                  value = year,
-                  onValueChange = {
-                    year = it
-                    afterValueChange()
-                  },
-                  label = { Text("Year") },
-                  modifier = Modifier.fillMaxSize(0.3f))
-
-              TextField(
-                  value = month,
-                  onValueChange = {
-                    month = it
-                    afterValueChange()
-                  },
-                  label = { Text("Month") },
-                  modifier = Modifier.fillMaxSize(0.3f))
-
-              TextField(
-                  value = day,
-                  onValueChange = {
-                    day = it
-                    afterValueChange()
-                  },
-                  label = { Text("Day") },
-                  modifier = Modifier.fillMaxSize(0.3f))
+            LaunchedEffect(Unit) {
+                if (value != null) {
+                    datePickerState.selectedDateMillis = convertDateToMillis(value!!)
+                }
             }
-          }
+
+            Box {
+                TextField(
+                    value = value ?: "",
+                    onValueChange = {},
+                    label = { Text(widget.label ?: "") },
+                    readOnly = true,
+                    trailingIcon = {
+                        IconButton(
+                            onClick = { showDatePicker = !showDatePicker },
+                            enabled = !processing,
+                        ) {
+                            Icon(imageVector = Icons.Default.DateRange, contentDescription = null)
+                        }
+                    },
+                )
+
+                if (showDatePicker) {
+                    Popup(
+                        onDismissRequest = {
+                            showDatePicker = false
+                            stateForWidget.value =
+                                datePickerState.selectedDateMillis?.let { convertMillisToDate(it) }
+                        },
+                        alignment = Alignment.TopStart,
+                    ) {
+                        Box { DatePicker(state = datePickerState, showModeToggle = false) }
+                    }
+                }
+            }
+        }
+
+        "fieldSet" -> {
+            var year by remember { mutableStateOf("") }
+            var month by remember { mutableStateOf("") }
+            var day by remember { mutableStateOf("") }
+
+            LaunchedEffect(Unit) {
+                if (value != null) {
+                    val split = value!!.split("-")
+                    if (split.size == 3) {
+                        year = split[0]
+                        month = split[1]
+                        day = split[2]
+                    }
+                }
+            }
+
+            val afterValueChange = {
+                if (year == "" || month == "" || day == "") {
+                    stateForWidget.value = null
+                } else {
+                    try {
+                        val milis =
+                            LocalDate
+                                .of(year.toInt(), month.toInt(), day.toInt())
+                                .atStartOfDay(ZoneId.of("UTC"))
+                                .toInstant()
+                                .toEpochMilli()
+                        stateForWidget.value = convertMillisToDate(milis)
+                    } catch (e: Exception) {
+                        stateForWidget.value = null
+                    }
+                }
+            }
+
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Row { Text(widget.label ?: "") }
+
+                Row {
+                    TextField(
+                        value = year,
+                        onValueChange = {
+                            year = it
+                            afterValueChange()
+                        },
+                        label = { Text("Year") },
+                        modifier = Modifier.fillMaxSize(0.3f),
+                    )
+
+                    TextField(
+                        value = month,
+                        onValueChange = {
+                            month = it
+                            afterValueChange()
+                        },
+                        label = { Text("Month") },
+                        modifier = Modifier.fillMaxSize(0.3f),
+                    )
+
+                    TextField(
+                        value = day,
+                        onValueChange = {
+                            day = it
+                            afterValueChange()
+                        },
+                        label = { Text("Day") },
+                        modifier = Modifier.fillMaxSize(0.3f),
+                    )
+                }
+            }
+        }
+
+        else -> {
+            loginController.triggerFallback()
+        }
     }
-    else -> loginController.triggerFallback()
-  }
 }
 
 fun convertMillisToDate(millis: Long): String {
-  val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-  formatter.timeZone = TimeZone.getTimeZone("UTC")
-  return formatter.format(Date(millis))
+    val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    formatter.timeZone = TimeZone.getTimeZone("UTC")
+    return formatter.format(Date(millis))
 }
 
 fun convertDateToMillis(date: String): Long? {
-  val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-  formatter.timeZone = TimeZone.getTimeZone("UTC")
-  return formatter.parse(date)?.toInstant()?.toEpochMilli()
+    val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    formatter.timeZone = TimeZone.getTimeZone("UTC")
+    return formatter.parse(date)?.toInstant()?.toEpochMilli()
 }
 
 @Composable
@@ -577,39 +673,54 @@ fun PhoneWidget(
     screen: Screen,
     widget: PhoneWidget,
     formId: String,
-    widgetId: String
+    widgetId: String,
 ) {
-  val stateForWidget = loginController.stateForWidget<String?>(formId, widgetId, null)
-  val value by stateForWidget.collectAsState()
+    val stateForWidget = loginController.stateForWidget<String?>(formId, widgetId, null)
+    val value by stateForWidget.collectAsState()
 
-  val processing by loginController.processing.collectAsState()
+    val processing by loginController.processing.collectAsState()
 
-  TextField(
-      value = value ?: "",
-      onValueChange = { stateForWidget.value = it },
-      label = { Text(widget.label) },
-      enabled = !processing,
-      keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-      modifier = Modifier.semantics { contentType = ContentType.PhoneNumber })
+    TextField(
+        value = value ?: "",
+        onValueChange = { stateForWidget.value = it },
+        label = { Text(widget.label) },
+        enabled = !processing,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+        modifier = Modifier.semantics { contentType = ContentType.PhoneNumber },
+    )
 }
 
 @Composable
-fun TextWithType(loginController: LoginController, type: String?, value: String) {
-  when (type) {
-    "text" -> Text(value)
-    "html" ->
-        Text(
-            AnnotatedString.fromHtml(
-                value,
-                linkStyles =
-                    TextLinkStyles(
-                        style =
-                            SpanStyle(
-                                textDecoration = TextDecoration.Underline,
-                                color = MaterialTheme.colorScheme.primary))))
+fun TextWithType(
+    loginController: LoginController,
+    type: String?,
+    value: String,
+) {
+    when (type) {
+        "text" -> {
+            Text(value)
+        }
 
-    else -> loginController.triggerFallback()
-  }
+        "html" -> {
+            Text(
+                AnnotatedString.fromHtml(
+                    value,
+                    linkStyles =
+                        TextLinkStyles(
+                            style =
+                                SpanStyle(
+                                    textDecoration = TextDecoration.Underline,
+                                    color = MaterialTheme.colorScheme.primary,
+                                ),
+                        ),
+                ),
+            )
+        }
+
+        else -> {
+            loginController.triggerFallback()
+        }
+    }
 }
 
 @Composable
@@ -618,7 +729,7 @@ fun PasskeyEnrollWidget(
     screen: Screen,
     widget: PasskeyEnrollWidget,
     formId: String,
-    widgetId: String
+    widgetId: String,
 ) {
     val coroutineScope = rememberCoroutineScope()
 
@@ -628,19 +739,22 @@ fun PasskeyEnrollWidget(
 
     val tag = "PasskeyEnrollWidget"
 
-    val onClick: () -> Unit = { coroutineScope.launch {
-        try {
-          loginController.submit(formId)
-        } catch (e: Throwable) {
-            Log.w(tag, "Unexpected exception: ${e.message}")
+    val onClick: () -> Unit = {
+        coroutineScope.launch {
+            try {
+                loginController.submit(formId)
+            } catch (e: Throwable) {
+                Log.w(tag, "Unexpected exception: ${e.message}")
 
-            Toast.makeText(
-                context,
-                "Unexpected error occurred, please try again (105).",
-                Toast.LENGTH_LONG
-            ).show()
+                Toast
+                    .makeText(
+                        context,
+                        "Unexpected error occurred, please try again (105).",
+                        Toast.LENGTH_LONG,
+                    ).show()
+            }
         }
-    } }
+    }
     when (widget.render?.type) {
         "button" -> Button(onClick = onClick, enabled = !processing) { Text(widget.label) }
         else -> loginController.triggerFallback()
@@ -653,7 +767,7 @@ fun PasskeyLoginWidget(
     screen: Screen,
     widget: PasskeyLoginWidget,
     formId: String,
-    widgetId: String
+    widgetId: String,
 ) {
     val coroutineScope = rememberCoroutineScope()
 
@@ -663,19 +777,22 @@ fun PasskeyLoginWidget(
 
     val tag = "PasskeyLoginWidget"
 
-    val onClick: () -> Unit = { coroutineScope.launch {
-        try {
-          loginController.submit(formId)
-        } catch (e: Throwable) {
-            Log.w(tag, "Unexpected exception: ${e.message}")
+    val onClick: () -> Unit = {
+        coroutineScope.launch {
+            try {
+                loginController.submit(formId)
+            } catch (e: Throwable) {
+                Log.w(tag, "Unexpected exception: ${e.message}")
 
-            Toast.makeText(
-                context,
-                "Unexpected error occurred, please try again (105).",
-                Toast.LENGTH_LONG
-            ).show()
+                Toast
+                    .makeText(
+                        context,
+                        "Unexpected error occurred, please try again (105).",
+                        Toast.LENGTH_LONG,
+                    ).show()
+            }
         }
-    } }
+    }
     when (widget.render?.type) {
         "button" -> Button(onClick = onClick, enabled = !processing) { Text(widget.label) }
         else -> loginController.triggerFallback()
@@ -684,70 +801,76 @@ fun PasskeyLoginWidget(
 
 @Composable
 fun WebauthnEnrollWidget(
-  loginController: LoginController,
-  screen: Screen,
-  widget: WebauthnEnrollWidget,
-  formId: String,
-  widgetId: String
+    loginController: LoginController,
+    screen: Screen,
+    widget: WebauthnEnrollWidget,
+    formId: String,
+    widgetId: String,
 ) {
-  val coroutineScope = rememberCoroutineScope()
+    val coroutineScope = rememberCoroutineScope()
 
-  val processing by loginController.processing.collectAsState()
+    val processing by loginController.processing.collectAsState()
 
-  val context = LocalContext.current
+    val context = LocalContext.current
 
-  val tag = "WebauthnEnrollWidget"
+    val tag = "WebauthnEnrollWidget"
 
-  val onClick: () -> Unit = { coroutineScope.launch {
-    try {
-      loginController.submit(formId)
-    } catch (e: Throwable) {
-      Log.w(tag, "Unexpected exception: ${e.message}")
+    val onClick: () -> Unit = {
+        coroutineScope.launch {
+            try {
+                loginController.submit(formId)
+            } catch (e: Throwable) {
+                Log.w(tag, "Unexpected exception: ${e.message}")
 
-      Toast.makeText(
-        context,
-        "Unexpected error occurred, please try again (105).",
-        Toast.LENGTH_LONG
-      ).show()
+                Toast
+                    .makeText(
+                        context,
+                        "Unexpected error occurred, please try again (105).",
+                        Toast.LENGTH_LONG,
+                    ).show()
+            }
+        }
     }
-  } }
-  when (widget.render?.type) {
-    "button" -> Button(onClick = onClick, enabled = !processing) { Text(widget.label) }
-    else -> loginController.triggerFallback()
-  }
+    when (widget.render?.type) {
+        "button" -> Button(onClick = onClick, enabled = !processing) { Text(widget.label) }
+        else -> loginController.triggerFallback()
+    }
 }
 
 @Composable
 fun WebauthnLoginWidget(
-  loginController: LoginController,
-  screen: Screen,
-  widget: WebauthnLoginWidget,
-  formId: String,
-  widgetId: String
+    loginController: LoginController,
+    screen: Screen,
+    widget: WebauthnLoginWidget,
+    formId: String,
+    widgetId: String,
 ) {
-  val coroutineScope = rememberCoroutineScope()
+    val coroutineScope = rememberCoroutineScope()
 
-  val processing by loginController.processing.collectAsState()
+    val processing by loginController.processing.collectAsState()
 
-  val context = LocalContext.current
+    val context = LocalContext.current
 
-  val tag = "WebauthnLoginWidget"
+    val tag = "WebauthnLoginWidget"
 
-  val onClick: () -> Unit = { coroutineScope.launch {
-    try {
-      loginController.submit(formId)
-    } catch (e: Throwable) {
-      Log.w(tag, "Unexpected exception: ${e.message}")
+    val onClick: () -> Unit = {
+        coroutineScope.launch {
+            try {
+                loginController.submit(formId)
+            } catch (e: Throwable) {
+                Log.w(tag, "Unexpected exception: ${e.message}")
 
-      Toast.makeText(
-        context,
-        "Unexpected error occurred, please try again (105).",
-        Toast.LENGTH_LONG
-      ).show()
+                Toast
+                    .makeText(
+                        context,
+                        "Unexpected error occurred, please try again (105).",
+                        Toast.LENGTH_LONG,
+                    ).show()
+            }
+        }
     }
-  } }
-  when (widget.render?.type) {
-    "button" -> Button(onClick = onClick, enabled = !processing) { Text(widget.label) }
-    else -> loginController.triggerFallback()
-  }
+    when (widget.render?.type) {
+        "button" -> Button(onClick = onClick, enabled = !processing) { Text(widget.label) }
+        else -> loginController.triggerFallback()
+    }
 }

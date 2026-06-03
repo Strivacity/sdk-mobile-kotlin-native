@@ -1,6 +1,5 @@
 package com.strivacity.android.native_sdk.render.models
 
-import java.time.Instant
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
@@ -12,17 +11,23 @@ import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.JsonContentPolymorphicSerializer
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.jsonObject
+import java.time.Instant
 
-@Serializable data class Message(val type: String, val text: String)
+@Serializable data class Message(
+    val type: String,
+    val text: String,
+)
 
 @Serializable(with = MessagesSerializer::class)
 sealed class Messages {
-  fun errorMessageForWidget(formId: String, widgetId: String): String? {
-    return when (this) {
-      is FormMessages -> this.form[formId]?.get(widgetId)?.text
-      is GlobalMessages -> null
-    }
-  }
+    fun errorMessageForWidget(
+        formId: String,
+        widgetId: String,
+    ): String? =
+        when (this) {
+            is FormMessages -> this.form[formId]?.get(widgetId)?.text
+            is GlobalMessages -> null
+        }
 }
 
 // Note: receivedAt is needed so when publishing in a `MutableStateFlow` it will trigger even when
@@ -30,34 +35,40 @@ sealed class Messages {
 @Serializable
 data class GlobalMessages(
     val global: Message,
-    @Transient private val receivedAt: Instant = Instant.now()
+    @Transient private val receivedAt: Instant = Instant.now(),
 ) : Messages()
 
-@Serializable data class FormMessages(val form: Map<String, Map<String, Message>>) : Messages()
+@Serializable data class FormMessages(
+    val form: Map<String, Map<String, Message>>,
+) : Messages()
 
 object MessagesSerializer : JsonContentPolymorphicSerializer<Messages>(Messages::class) {
-  override fun selectDeserializer(element: JsonElement) =
-      when {
-        "global" in element.jsonObject -> GlobalMessages.serializer()
-        else -> FormMessagesSerializer
-      }
+    override fun selectDeserializer(element: JsonElement) =
+        when {
+            "global" in element.jsonObject -> GlobalMessages.serializer()
+            else -> FormMessagesSerializer
+        }
 }
 
 object FormMessagesSerializer : KSerializer<FormMessages> {
-  override val descriptor: SerialDescriptor
-    get() =
-        MapSerializer(String.serializer(), MapSerializer(String.serializer(), Message.serializer()))
-            .descriptor
+    override val descriptor: SerialDescriptor
+        get() =
+            MapSerializer(
+                String.serializer(),
+                MapSerializer(String.serializer(), Message.serializer()),
+            ).descriptor
 
-  override fun deserialize(decoder: Decoder): FormMessages {
-    return FormMessages(
-        MapSerializer(String.serializer(), MapSerializer(String.serializer(), Message.serializer()))
-            .deserialize(decoder))
-  }
+    override fun deserialize(decoder: Decoder): FormMessages =
+        FormMessages(
+            MapSerializer(
+                String.serializer(),
+                MapSerializer(String.serializer(), Message.serializer()),
+            ).deserialize(decoder),
+        )
 
-  override fun serialize(encoder: Encoder, value: FormMessages) {
-    return MapSerializer(
-            String.serializer(), MapSerializer(String.serializer(), Message.serializer()))
+    override fun serialize(
+        encoder: Encoder,
+        value: FormMessages,
+    ) = MapSerializer(String.serializer(), MapSerializer(String.serializer(), Message.serializer()))
         .serialize(encoder, value.form)
-  }
 }

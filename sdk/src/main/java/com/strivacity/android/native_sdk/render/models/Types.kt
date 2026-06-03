@@ -10,7 +10,7 @@ data class Screen(
     val finalizeUrl: String?,
     val forms: List<FormWidget>?,
     val layout: Layout?,
-    var messages: Messages?
+    var messages: Messages?,
 )
 
 @Serializable
@@ -18,5 +18,5 @@ data class Branding(
     val logoUrl: String?,
     val copyright: String?,
     val siteTermUrl: String?,
-    val privacyPolicyUrl: String?
+    val privacyPolicyUrl: String?,
 )

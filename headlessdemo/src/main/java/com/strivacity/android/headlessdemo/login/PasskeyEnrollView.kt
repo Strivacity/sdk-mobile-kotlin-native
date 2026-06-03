@@ -35,68 +35,78 @@ fun PasskeyEnrollView(
     screen: Screen,
     headlessAdapter: HeadlessAdapter,
 ) {
-  val messages by headlessAdapter.messages().collectAsState()
+    val messages by headlessAdapter.messages().collectAsState()
 
-  val coroutineScope = rememberCoroutineScope()
+    val coroutineScope = rememberCoroutineScope()
 
-  var target by remember {
-    mutableStateOf(
-        screen.forms!!
-            .first { it.id == "passkeyEnroll" }
-            .widgets
-            .first { it.id == "target" }
-            .value() as String
-    )
-  }
-
-  val context = LocalContext.current
-
-  Column(
-      horizontalAlignment = Alignment.CenterHorizontally,
-      verticalArrangement = Arrangement.spacedBy(10.dp),
-      modifier = Modifier.fillMaxWidth().padding(35.dp),
-  ) {
-    Text("Create a passkey", fontSize = 24.sp, fontWeight = FontWeight.W600)
-
-    Text("When you are ready, create a passkey using the button below")
-
-    TextField(
-        value = target,
-        onValueChange = { target = it },
-        label = { Text("Device name") },
-        modifier = Modifier.fillMaxWidth(),
-    )
-
-    val errorMessage = messages?.errorMessageForWidget("passkeyEnroll", "target")
-    if (errorMessage != null) {
-      Text(errorMessage, color = Color.Red, modifier = Modifier.fillMaxWidth())
+    var target by remember {
+        mutableStateOf(
+            screen.forms!!
+                .first { it.id == "passkeyEnroll" }
+                .widgets
+                .first { it.id == "target" }
+                .value() as String,
+        )
     }
 
-    Button(
-        modifier = Modifier.fillMaxWidth(),
-        colors = ButtonDefaults.buttonColors(containerColor = StrivacityPrimary),
-        onClick = {
-          coroutineScope.launch {
-            try {
-              headlessAdapter.submit("passkeyEnroll", mapOf("target" to target))
-            } catch (ex: PlatformError) {
-              Toast.makeText(context, ex.cause?.message ?: "Unknown issue", Toast.LENGTH_SHORT).show()
-            } catch (ex: Throwable) {
-              Toast.makeText(context, ex.message ?: "Unknown issue", Toast.LENGTH_SHORT).show()
-            }
-          }
-        },
+    val context = LocalContext.current
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.fillMaxWidth().padding(35.dp),
     ) {
-      Text("Continue")
-    }
+        Text("Create a passkey", fontSize = 24.sp, fontWeight = FontWeight.W600)
 
-    TextButton(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = {
-          coroutineScope.launch { headlessAdapter.submit("additionalActions/skip", mapOf()) }
-        },
-    ) {
-      Text("Skip for now")
+        Text("When you are ready, create a passkey using the button below")
+
+        TextField(
+            value = target,
+            onValueChange = { target = it },
+            label = { Text("Device name") },
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        val errorMessage = messages?.errorMessageForWidget("passkeyEnroll", "target")
+        if (errorMessage != null) {
+            Text(errorMessage, color = Color.Red, modifier = Modifier.fillMaxWidth())
+        }
+
+        Button(
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = StrivacityPrimary),
+            onClick = {
+                coroutineScope.launch {
+                    try {
+                        headlessAdapter.submit("passkeyEnroll", mapOf("target" to target))
+                    } catch (ex: PlatformError) {
+                        Toast
+                            .makeText(
+                                context,
+                                ex.cause?.message ?: "Unknown issue",
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                    } catch (ex: Throwable) {
+                        Toast
+                            .makeText(
+                                context,
+                                ex.message ?: "Unknown issue",
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                    }
+                }
+            },
+        ) {
+            Text("Continue")
+        }
+
+        TextButton(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = {
+                coroutineScope.launch { headlessAdapter.submit("additionalActions/skip", mapOf()) }
+            },
+        ) {
+            Text("Skip for now")
+        }
     }
-  }
 }

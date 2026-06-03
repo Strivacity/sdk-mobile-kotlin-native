@@ -12,13 +12,25 @@ import android.util.Log
  * these methods, as that could disrupt the SDK's operation.
  */
 interface Logging {
-  fun debug(body: String, exception: Throwable? = null)
+    fun debug(
+        body: String,
+        exception: Throwable? = null,
+    )
 
-  fun info(body: String, exception: Throwable? = null)
+    fun info(
+        body: String,
+        exception: Throwable? = null,
+    )
 
-  fun warn(body: String, exception: Throwable? = null)
+    fun warn(
+        body: String,
+        exception: Throwable? = null,
+    )
 
-  fun error(body: String, exception: Throwable? = null)
+    fun error(
+        body: String,
+        exception: Throwable? = null,
+    )
 }
 
 /**
@@ -27,19 +39,31 @@ interface Logging {
  * Logcat is thread-safe, so this implementation is also thread-safe.
  */
 class DefaultLogging : Logging {
-  override fun debug(body: String, exception: Throwable?) {
-    Log.d("NativeSDK", body, exception)
-  }
+    override fun debug(
+        body: String,
+        exception: Throwable?,
+    ) {
+        Log.d("NativeSDK", body, exception)
+    }
 
-  override fun info(body: String, exception: Throwable?) {
-    Log.i("NativeSDK", body, exception)
-  }
+    override fun info(
+        body: String,
+        exception: Throwable?,
+    ) {
+        Log.i("NativeSDK", body, exception)
+    }
 
-  override fun warn(body: String, exception: Throwable?) {
-    Log.w("NativeSDK", body, exception)
-  }
+    override fun warn(
+        body: String,
+        exception: Throwable?,
+    ) {
+        Log.w("NativeSDK", body, exception)
+    }
 
-  override fun error(body: String, exception: Throwable?) {
-    Log.e("NativeSDK", body, exception)
-  }
+    override fun error(
+        body: String,
+        exception: Throwable?,
+    ) {
+        Log.e("NativeSDK", body, exception)
+    }
 }
