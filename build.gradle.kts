@@ -10,9 +10,8 @@ plugins {
 
 spotless {
     kotlin {
-        target("**/*.kt")
+        target("**/*.kt", "**/*.kts")
         ktlint()
-        ktfmt()
     }
     java {
         target("**/*.java")
