@@ -32,10 +32,10 @@ jobs:
         with:
           cache-disabled: true
 
-      - name: "Verify Java formatting"
+      - name: "Verify linting"
         id: spotless
         continue-on-error: true
-        run: ./gradlew spotlessJavaCheck
+        run: ./gradlew spotlessCheck
 
       - name: "Run tests"
         run: ./gradlew :sdk:test --no-daemon
