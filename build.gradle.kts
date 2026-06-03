@@ -11,6 +11,9 @@ plugins {
 spotless {
     kotlin {
         target("**/*.kt", "**/*.kts")
+        targetExclude(
+            "**/build/**/*.kt",
+        )
         ktlint()
     }
     java {
