@@ -10,8 +10,7 @@ internal class TokenResponseBuilder(
     var iss: String = "https://localhost/",
     var aud: String = "[\"test_client\"]",
 ) {
-    fun createAsTokenResponse(now: Instant = Instant.now()): TokenResponse =
-        decode(buildAsString(now))
+    fun createAsTokenResponse(now: Instant = Instant.now()): TokenResponse = decode(buildAsString(now))
 
     fun buildAsString(now: Instant = Instant.now()): String =
         """

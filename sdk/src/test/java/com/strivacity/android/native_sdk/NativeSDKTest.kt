@@ -205,12 +205,10 @@ internal class NativeSDKRefresh : NativeSDKTestBase() {
         }
 
     @Test
-    fun refresh_shouldClearStorage_onUnauthorized() =
-        do_refresh_shouldClearStorage(HttpStatusCode.Unauthorized)
+    fun refresh_shouldClearStorage_onUnauthorized() = do_refresh_shouldClearStorage(HttpStatusCode.Unauthorized)
 
     @Test
-    fun refresh_shouldClearStorage_onForbidden() =
-        do_refresh_shouldClearStorage(HttpStatusCode.Forbidden)
+    fun refresh_shouldClearStorage_onForbidden() = do_refresh_shouldClearStorage(HttpStatusCode.Forbidden)
 
     private fun do_refresh_shouldClearStorage(statusCode: HttpStatusCode) =
         runTest {

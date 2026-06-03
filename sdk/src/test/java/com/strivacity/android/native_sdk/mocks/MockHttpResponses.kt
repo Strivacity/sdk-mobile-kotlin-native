@@ -28,9 +28,7 @@ fun MockRequestHandleScope.respondFlowRedirect(request: HttpRequestData): HttpRe
         }
     }
 
-fun MockRequestHandleScope.respondFlowRedirectWithoutLanguage(
-    request: HttpRequestData,
-): HttpResponseData? =
+fun MockRequestHandleScope.respondFlowRedirectWithoutLanguage(request: HttpRequestData): HttpResponseData? =
     with(request.url.encodedPath) {
         when {
             startsWith("/oauth2/auth") -> {
@@ -180,9 +178,7 @@ fun MockRequestHandleScope.respondInit200(request: HttpRequestData): HttpRespons
         }
     }
 
-fun MockRequestHandleScope.respondEntryWithRedirectBody(
-    request: HttpRequestData,
-): HttpResponseData? =
+fun MockRequestHandleScope.respondEntryWithRedirectBody(request: HttpRequestData): HttpResponseData? =
     with(request.url.encodedPath) {
         when {
             startsWith("/provider/flow/entry") -> {
@@ -198,9 +194,7 @@ fun MockRequestHandleScope.respondEntryWithRedirectBody(
         }
     }
 
-fun MockRequestHandleScope.respondEntryWithRedirectBodyWithoutLanguage(
-    request: HttpRequestData,
-): HttpResponseData? =
+fun MockRequestHandleScope.respondEntryWithRedirectBodyWithoutLanguage(request: HttpRequestData): HttpResponseData? =
     with(request.url.encodedPath) {
         when {
             startsWith("/provider/flow/entry") -> {
