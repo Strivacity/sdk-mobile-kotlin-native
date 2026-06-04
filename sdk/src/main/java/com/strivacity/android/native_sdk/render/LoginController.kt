@@ -94,23 +94,31 @@ internal constructor(
   }
 
   suspend fun submit(formId: String, body: Map<String, Any> = mapOf()) {
-    when (formId) {
-      "passkey", "mfaWebAuthnAssertion" -> {
-        val assertionWidget = findAssertionWidget(formId)
-        val response = assertPasskeyOrWebauthn(assertionWidget.assertionOptions)
-        val credential = response.credential as PublicKeyCredential
-        val decodedCredential = Json.parseToJsonElement(credential.authenticationResponseJson)
-        stateForWidget(formId = formId, widgetId = assertionWidget.widget.id, decodedCredential)
-          .value = decodedCredential
-      }
+    logging.debug(
+      "LoginController: Submitting form `$formId` on screen `${screen.value?.screen ?: "unknown"}`"
+    )
+    _processing.value = true
+    try {
+      when (formId) {
+        "passkey", "mfaWebAuthnAssertion" -> {
+          val assertionWidget = findAssertionWidget(formId)
+          val response = assertPasskeyOrWebauthn(assertionWidget.assertionOptions)
+          val credential = response.credential as PublicKeyCredential
+          val decodedCredential = Json.parseToJsonElement(credential.authenticationResponseJson)
+          stateForWidget(formId = formId, widgetId = assertionWidget.widget.id, decodedCredential)
+            .value = decodedCredential
+        }
 
-      "passkeyEnroll", "mfaEnrollWebAuthn" -> {
-        val enrollWidget = findEnrollmentWidget(formId)
-        val response = enrollPasskeyOrWebauthn(enrollWidget.enrollOptions)
-        val decodedResponse = Json.parseToJsonElement(response.registrationResponseJson)
-        stateForWidget(formId = formId, widgetId = enrollWidget.widget.id, decodedResponse)
-          .value = decodedResponse
+        "passkeyEnroll", "mfaEnrollWebAuthn" -> {
+          val enrollWidget = findEnrollmentWidget(formId)
+          val response = enrollPasskeyOrWebauthn(enrollWidget.enrollOptions)
+          val decodedResponse = Json.parseToJsonElement(response.registrationResponseJson)
+          stateForWidget(formId = formId, widgetId = enrollWidget.widget.id, decodedResponse)
+            .value = decodedResponse
+        }
       }
+    } finally {
+      _processing.value = false
     }
     withContext(Dispatchers.IO) {
       val payload = when (val formValues = forms.value[formId]) {
@@ -124,11 +132,6 @@ internal constructor(
   }
 
   private suspend fun doSubmit(formId: String, payload: Map<String, Any>) {
-    logging.debug(
-      "LoginController: Submitting form `$formId` on screen `${screen.value?.screen ?: "unknown"}`"
-    )
-    _processing.value = true
-
     try {
       updateScreen(loginHandlerService.submitForm(formId, payload))
     } catch (e: SessionExpiredError) {
@@ -141,6 +144,8 @@ internal constructor(
       )
       logging.warn(e.stackTraceToString())
       triggerFallback()
+    } finally {
+      _processing.value = false
     }
   }
 

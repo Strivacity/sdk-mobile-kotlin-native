@@ -1,0 +1,35 @@
+<resources>
+    <string name="app_name">Javademo</string>
+    <string name="prompt_username">Identifier</string>
+    <string name="prompt_password">Password</string>
+    <string name="action_login">Login</string>
+    <string name="action_continue">Continue</string>
+    <string name="status_loading">Loading...</string>
+    <string name="welcome_user">Welcome, %1$s!</string>
+    <string name="profile_title">Profile</string>
+    <string name="profile_label_email">Email</string>
+    <string name="profile_label_subject">User ID</string>
+    <string name="profile_label_access_token">Access Token</string>
+    <string name="profile_label_claims">Claims</string>
+    <string name="passkey_enroll_title">Create a passkey</string>
+    <string name="passkey_enroll_subtitle">When you are ready, create a passkey using the button below</string>
+    <string name="passkey_enroll_device_name_hint">Device name</string>
+    <string name="passkey_enroll_skip">Skip for now</string>
+    <string name="registration_title">Sign up</string>
+    <string name="registration_hint_email">Email</string>
+    <string name="registration_hint_password">Password</string>
+    <string name="registration_hint_password_confirmation">Re-type password</string>
+    <string name="registration_keep_me_logged_in">Keep me logged in</string>
+    <string name="registration_back_to_login">Back to login</string>
+    <string name="identification_title">Sign in</string>
+    <string name="identification_or_divider">OR</string>
+    <string name="identification_sign_up_prompt">Don\'t have an account?</string>
+    <string name="identification_sign_up">Sign up</string>
+    <string name="button_revoke">Revoke</string>
+    <string name="button_logout">Logout</string>
+    <string name="error_title">Something went wrong</string>
+    <string name="error_try_again">Try again</string>
+    <string name="profileAccessTokenValue">Access token value</string>
+    <string name="profileIdTokenClaimsValue">ID Token Claims value</string>
+    <string name="button_load_access_token">Load access token</string>
+</resources>

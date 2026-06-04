@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <!-- Avatar + name header -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:layout_marginBottom="20dp">
+
+            <TextView
+                android:id="@+id/profileAvatar"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:background="@drawable/bg_avatar_circle"
+                android:gravity="center"
+                android:textAppearance="@style/TextAppearance.AppCompat.Display2"
+                android:textColor="@android:color/white"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/profileDisplayName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="?attr/textAppearanceHeadlineLarge" />
+
+                <TextView
+                    android:id="@+id/profileTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="@string/profile_title"
+                    android:textAppearance="@style/TextAppearance.AppCompat.Display1"
+                    android:textColor="?attr/colorControlNormal" />
+
+            </LinearLayout>
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginBottom="16dp"
+            android:background="?attr/colorControlHighlight" />
+
+        <!-- Email row -->
+        <LinearLayout
+            android:id="@+id/profileEmailRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:layout_marginBottom="12dp"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="80dp"
+                android:layout_height="wrap_content"
+                android:text="@string/profile_label_email"
+                android:textAppearance="?attr/textAppearanceLabelLarge"
+                android:textColor="?attr/colorControlNormal"
+                android:textAllCaps="true" />
+
+            <TextView
+                android:id="@+id/profileEmail"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textAppearance="?attr/textAppearanceTitleMedium" />
+
+        </LinearLayout>
+
+        <!-- Subject row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="80dp"
+                android:layout_height="wrap_content"
+                android:text="@string/profile_label_subject"
+                android:textAllCaps="true"
+                android:textAppearance="@style/TextAppearance.AppCompat.Body2"
+                android:textColor="?attr/colorControlNormal" />
+
+            <TextView
+                android:id="@+id/profileSubject"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textAppearance="@style/TextAppearance.AppCompat.Body1"
+                android:textColor="?attr/colorControlNormal" />
+
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginBottom="16dp"
+            android:background="?attr/colorControlHighlight" />
+
+        <!-- Claims section -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/profile_label_claims"
+            android:textAppearance="?attr/textAppearanceLabelLarge"
+            android:textColor="?attr/colorControlNormal"
+            android:textAllCaps="true"
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:id="@+id/profileClaimsValue"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:fontFamily="monospace"
+            android:textAppearance="@style/TextAppearance.AppCompat.Body1"
+            android:contentDescription="@string/profileIdTokenClaimsValue"
+            android:textIsSelectable="true" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginBottom="16dp"
+            android:background="?attr/colorControlHighlight" />
+
+        <LinearLayout
+            android:id="@+id/profile_layout_access_token"
+            android:visibility="gone"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+            <!-- Access Token section -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/profile_label_access_token"
+                android:textAppearance="?attr/textAppearanceLabelLarge"
+                android:textColor="?attr/colorControlNormal"
+                android:textAllCaps="true"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:id="@+id/profileAccessTokenValue"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:ellipsize="end"
+                android:fontFamily="monospace"
+                android:maxLines="3"
+                android:textAppearance="@style/TextAppearance.AppCompat.Body1"
+                android:contentDescription="@string/profileAccessTokenValue"
+                android:textIsSelectable="true" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginBottom="16dp"
+                android:background="?attr/colorControlHighlight" />
+        </LinearLayout>
+
+
+        <!-- Action buttons -->
+        <Button
+            android:id="@+id/profileLoadAccessToken"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/button_load_access_token"/>
+
+        <Button
+            android:id="@+id/profileRevokeButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:text="@string/button_revoke"/>
+
+        <Button
+            android:id="@+id/profile_logout_button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/button_logout" />
+
+    </LinearLayout>
+
+</ScrollView>

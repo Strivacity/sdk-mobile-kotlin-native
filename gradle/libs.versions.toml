@@ -13,12 +13,19 @@ material = "1.12.0"
 
 ktor = "3.2.2"
 kotlinx-serialization-json = "1.8.1"
-kotlinx-coroutines-test = "1.10.2"
+kotlinx-coroutines = "1.10.2"
 browser = "1.8.0"
 credentials = "1.6.0"
 mockito = "6.1.0"
 browserVersion = "1.9.0"
 robolectric = "4.13"
+constraintlayout = "2.2.1"
+lifecycleLivedataKtx = "2.10.0"
+lifecycleViewmodelKtx = "2.10.0"
+annotation = "1.9.1"
+coreKtxVersion = "1.18.0"
+androidxBrowser = "1.10.0"
+spotless = "7.2.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -44,12 +51,19 @@ ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx
 ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
 ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor"}
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization-json" }
-kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines-test" }
+kotlinx-coroutines-jdk9 = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-jdk9", version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
 androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "browser" }
 androidx-credentials = { group = "androidx.credentials", name = "credentials", version.ref = "credentials" }
 mockito = { module="org.mockito.kotlin:mockito-kotlin", version.ref="mockito" }
 browser = { group = "androidx.browser", name = "browser", version.ref = "browserVersion" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
+androidx-annotation = { group = "androidx.annotation", name = "annotation", version.ref = "annotation" }
+androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
+androidx-lifecycle-livedata-ktx = { group = "androidx.lifecycle", name = "lifecycle-livedata-ktx", version.ref = "lifecycleLivedataKtx" }
+androidx-lifecycle-viewmodel-ktx = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-ktx", version.ref = "lifecycleViewmodelKtx" }
+core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtxVersion" }
+androidx-browser-browser = { group = "androidx.browser", name = "browser", version.ref = "androidxBrowser" }
 
 
 [plugins]
@@ -59,3 +73,4 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 android-library = { id = "com.android.library", version.ref = "agp" }
 
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
