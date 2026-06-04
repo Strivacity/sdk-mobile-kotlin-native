@@ -4,6 +4,7 @@ import com.strivacity.android.native_sdk.Error
 import com.strivacity.android.native_sdk.HttpError
 import com.strivacity.android.native_sdk.InvalidCallbackError
 import com.strivacity.android.native_sdk.Logging
+import com.strivacity.android.native_sdk.TokenRefreshOidcError
 import com.strivacity.android.native_sdk.util.OIDCParamGenerator
 import io.ktor.client.call.body
 import io.ktor.client.statement.HttpResponse
@@ -78,10 +79,15 @@ internal class OIDCHandlerService(
         logging.debug("OIDCHandlerService: Attempting token refresh")
         val httpResponse = httpService.postForm(url, tokenRefreshParams.toParameters())
 
+        if (httpResponse.status.value == 400) {
+            val body = httpResponse.body<Map<String, String>>()
+            val error = body["error"] ?: ""
+            val errorDescription = body["error_description"]
+            throw TokenRefreshOidcError(error, errorDescription)
+        }
+
         if (httpResponse.status.value != 200) {
-            logging.error(
-                "OIDCHandlerService: Token refresh failed with status code ${httpResponse.status.value}",
-            )
+            logging.error("OIDCHandlerService: Token refresh failed with status code ${httpResponse.status.value}")
             throw HttpError(statusCode = httpResponse.status.value)
         }
         return httpResponse.body()

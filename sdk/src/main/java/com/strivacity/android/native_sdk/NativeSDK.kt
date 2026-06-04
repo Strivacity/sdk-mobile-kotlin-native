@@ -623,6 +623,12 @@ class NativeSDK
                     session.update(tokenResponse)
                     logging.debug("NativeSDK: Token refresh successful")
                     return true
+                } catch (e: TokenRefreshOidcError) {
+                    logging.error(
+                        "OIDCHandlerService: Token refresh failed — error: ${e.error}, description: \"${e.errorDescription}\"",
+                    )
+                    session.clear()
+                    throw e
                 } catch (e: HttpError) {
                     if (e.statusCode in listOf(401, 403)) {
                         logging.warn(
