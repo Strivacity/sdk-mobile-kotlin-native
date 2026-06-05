@@ -69,8 +69,7 @@ class NativeSDKJava private constructor(
      *
      * Call this on app start before checking [isAuthenticated] or [getAccessToken].
      */
-    fun initializeSession(): CompletableFuture<Void> =
-        launch { delegate.initializeSession() }.thenApply { null }
+    fun initializeSession(): CompletableFuture<Void> = launch { delegate.initializeSession() }.thenApply { null }
 
     /**
      * Starts the login flow.
@@ -150,8 +149,7 @@ class NativeSDKJava private constructor(
      *
      * Pass `null` to signal that the user cancelled the hosted flow.
      */
-    fun continueFlow(uri: String?): CompletableFuture<Void> =
-        launch { delegate.continueFlow(uri) }.thenApply { null }
+    fun continueFlow(uri: String?): CompletableFuture<Void> = launch { delegate.continueFlow(uri) }.thenApply { null }
 
     /**
      * Cancels the active login flow and releases its resources.
