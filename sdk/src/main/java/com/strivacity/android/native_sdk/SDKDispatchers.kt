@@ -10,19 +10,24 @@ import kotlinx.coroutines.Dispatchers
  * dispatchers.
  */
 interface SDKDispatchers {
-  val IO: CoroutineDispatcher
-  val Default: CoroutineDispatcher
-  val Main: CoroutineDispatcher
+    @Suppress("ktlint:standard:property-naming")
+    val IO: CoroutineDispatcher
+
+    @Suppress("ktlint:standard:property-naming")
+    val Default: CoroutineDispatcher
+
+    @Suppress("ktlint:standard:property-naming")
+    val Main: CoroutineDispatcher
 }
 
 /** Default implementation of [SDKDispatchers] using standard Kotlin coroutines dispatchers. */
 object DefaultSDKDispatchers : SDKDispatchers {
-  override val IO: CoroutineDispatcher
-    get() = Dispatchers.IO
+    override val IO: CoroutineDispatcher
+        get() = Dispatchers.IO
 
-  override val Default: CoroutineDispatcher
-    get() = Dispatchers.Default
+    override val Default: CoroutineDispatcher
+        get() = Dispatchers.Default
 
-  override val Main: CoroutineDispatcher
-    get() = Dispatchers.Main
+    override val Main: CoroutineDispatcher
+        get() = Dispatchers.Main
 }

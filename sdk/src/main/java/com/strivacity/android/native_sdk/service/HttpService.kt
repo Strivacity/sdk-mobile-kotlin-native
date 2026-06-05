@@ -34,117 +34,119 @@ internal class HttpService(
     clientEngine: HttpClientEngine = Android.create(),
     private var languageTag: String,
 ) {
-  private val client =
-      HttpClient(clientEngine) {
-        install(ContentNegotiation) {
-          json(
-              Json {
-                ignoreUnknownKeys = true
-                explicitNulls = false
-              }
-          )
+    private val client =
+        HttpClient(clientEngine) {
+            install(ContentNegotiation) {
+                json(
+                    Json {
+                        ignoreUnknownKeys = true
+                        explicitNulls = false
+                    },
+                )
+            }
+            install(HttpCookies)
+            install(CustomRequestHeadersPlugin) {
+                this.headers = networkConfiguration.customRequestHeaders
+            }
+            install(UserAgent) { agent = networkConfiguration.userAgent }
+            install(LoggingClientPlugin) { this@install.logging = this@HttpService.logging }
         }
-        install(HttpCookies)
-        install(CustomRequestHeadersPlugin) {
-          this.headers = networkConfiguration.customRequestHeaders
+
+    suspend fun get(
+        url: Url,
+        acceptHeader: ContentType = ContentType.Application.Json,
+    ): HttpResponse =
+        client.get(url) {
+            accept(acceptHeader)
+            headers["Accept-Language"] = languageTag
         }
-        install(UserAgent) { agent = networkConfiguration.userAgent }
-        install(LoggingClientPlugin) { this@install.logging = this@HttpService.logging }
-      }
 
-  suspend fun get(
-      url: Url,
-      acceptHeader: ContentType = ContentType.Application.Json,
-  ): HttpResponse {
-    return client.get(url) {
-      accept(acceptHeader)
-      headers["Accept-Language"] = languageTag
+    suspend fun post(
+        url: Url,
+        session: String,
+        body: JsonObject? = null,
+        acceptHeader: ContentType = ContentType.Application.Json,
+    ): HttpResponse =
+        client.post(url) {
+            accept(acceptHeader)
+            contentType(ContentType.Application.Json)
+            setBody(body)
+            headers.apply {
+                append("Authorization", "Bearer $session")
+                headers["Accept-Language"] = languageTag
+            }
+        }
+
+    suspend fun postForm(
+        url: String,
+        body: Parameters,
+        acceptHeader: ContentType = ContentType.Application.Json,
+    ): HttpResponse =
+        client.submitForm(url = url, formParameters = body) {
+            accept(acceptHeader)
+            headers["Accept-Language"] = languageTag
+        }
+
+    fun setAcceptLanguageHeader(languageTag: String) {
+        this.languageTag = languageTag
     }
-  }
-
-  suspend fun post(
-      url: Url,
-      session: String,
-      body: JsonObject? = null,
-      acceptHeader: ContentType = ContentType.Application.Json,
-  ): HttpResponse {
-    return client.post(url) {
-      accept(acceptHeader)
-      contentType(ContentType.Application.Json)
-      setBody(body)
-      headers.apply {
-        append("Authorization", "Bearer $session")
-        headers["Accept-Language"] = languageTag
-      }
-    }
-  }
-
-  suspend fun postForm(
-      url: String,
-      body: Parameters,
-      acceptHeader: ContentType = ContentType.Application.Json,
-  ): HttpResponse {
-    return client.submitForm(url = url, formParameters = body) {
-      accept(acceptHeader)
-      headers["Accept-Language"] = languageTag
-    }
-  }
-
-  fun setAcceptLanguageHeader(languageTag: String) {
-    this.languageTag = languageTag
-  }
 }
 
 private val LoggingClientPlugin =
     createClientPlugin("SDKLoggingClientPlugin", ::LoggingClientPluginConfig) {
-      val logging = pluginConfig.logging
-      val redirects =
-          setOf(
-              HttpStatusCode.MovedPermanently,
-              HttpStatusCode.Found,
-              HttpStatusCode.SeeOther,
-              HttpStatusCode.TemporaryRedirect,
-              HttpStatusCode.PermanentRedirect,
-          )
+        val logging = pluginConfig.logging
+        val redirects =
+            setOf(
+                HttpStatusCode.MovedPermanently,
+                HttpStatusCode.Found,
+                HttpStatusCode.SeeOther,
+                HttpStatusCode.TemporaryRedirect,
+                HttpStatusCode.PermanentRedirect,
+            )
 
-      onRequest { request, _ ->
-        logging.debug("HTTP Request: ${request.method.value} ${request.url.encodedPath}")
-      }
-
-      onResponse { response ->
-        val locationHeader = response.headers[HttpHeaders.Location]
-        val shouldPrintLocation =
-            response.status in redirects && locationHeader != null && locationHeader.isNotBlank()
-        if (shouldPrintLocation) {
-          val locationUrl = Url(locationHeader)
-          logging.debug(
-              "HTTP Response: ${response.status.value} for ${response.request.method.value} ${response.request.url.encodedPath}" +
-                  "Redirecting: ${locationUrl.protocolWithAuthority}${locationUrl.encodedPath}"
-          )
-        } else {
-          logging.debug(
-              "HTTP Response: ${response.status.value} for ${response.request.method.value} ${response.request.url.encodedPath}"
-          )
+        onRequest { request, _ ->
+            logging.debug("HTTP Request: ${request.method.value} ${request.url.encodedPath}")
         }
 
-        val eventIdHeader = response.headers["X-Event-ID"]
-        if (!eventIdHeader.isNullOrBlank()) {
-          logging.debug("X-Event-ID: $eventIdHeader")
+        onResponse { response ->
+            val locationHeader = response.headers[HttpHeaders.Location]
+            val shouldPrintLocation =
+                response.status in redirects && locationHeader != null &&
+                    locationHeader.isNotBlank()
+            if (shouldPrintLocation) {
+                val locationUrl = Url(locationHeader)
+                logging.debug(
+                    "HTTP Response: ${response.status.value} for " +
+                        "${response.request.method.value} ${response.request.url.encodedPath}" +
+                        "Redirecting: " +
+                        "${locationUrl.protocolWithAuthority}${locationUrl.encodedPath}",
+                )
+            } else {
+                logging.debug(
+                    "HTTP Response: ${response.status.value} for " +
+                        "${response.request.method.value} " +
+                        response.request.url.encodedPath,
+                )
+            }
+
+            val eventIdHeader = response.headers["X-Event-ID"]
+            if (!eventIdHeader.isNullOrBlank()) {
+                logging.debug("X-Event-ID: $eventIdHeader")
+            }
         }
-      }
     }
 
 internal class LoggingClientPluginConfig {
-  lateinit var logging: Logging
+    lateinit var logging: Logging
 }
 
 private val CustomRequestHeadersPlugin =
     createClientPlugin("SDKCustomHeadersPlugin", ::CustomRequestHeadersPluginConfig) {
-      val headers = pluginConfig.headers
+        val headers = pluginConfig.headers
 
-      onRequest { request, _ -> headers.forEach { (key, value) -> request.headers[key] = value } }
+        onRequest { request, _ -> headers.forEach { (key, value) -> request.headers[key] = value } }
     }
 
 internal class CustomRequestHeadersPluginConfig {
-  lateinit var headers: Map<String, String>
+    lateinit var headers: Map<String, String>
 }

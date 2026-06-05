@@ -24,92 +24,103 @@ internal class OIDCHandlerService(
     private val httpService: HttpService,
     private val logging: Logging,
 ) {
+    suspend fun handleCall(url: Url): Parameters {
+        val location: Url
+        if (url.protocol.name == "https") {
+            val response = httpService.get(url, acceptHeader = ContentType.Text.Html)
+            if (response.status.value == 200 &&
+                response.request.url.host == url.host &&
+                response.request.url.encodedPath == "/oauth2/error"
+            ) {
+                return response.request.url.parameters
+            }
 
-  suspend fun handleCall(url: Url): Parameters {
-    val location: Url
-    if (url.protocol.name == "https") {
-      val response = httpService.get(url, acceptHeader = ContentType.Text.Html)
-      if (response.status.value == 200 &&
-          response.request.url.host == url.host &&
-          response.request.url.encodedPath == "/oauth2/error") {
-        return response.request.url.parameters
-      }
+            try {
+                location = Url(response.bodyAsText())
+            } catch (ex: Throwable) {
+                logging.debug("Could not parse response body as redirect URL", ex)
+                throw InvalidCallbackError(
+                    "Expected redirect URL in response body but was not found",
+                )
+            }
+        } else {
+            location = url
+        }
 
-      try {
-        location = Url(response.bodyAsText())
-      } catch (ex: Throwable) {
-        logging.debug("Could not parse response body as redirect URL", ex)
-        throw InvalidCallbackError("Expected redirect URL in response body but was not found")
-      }
-    } else {
-      location = url
+        return location.parameters
     }
 
-    return location.parameters
-  }
-
-  suspend fun logout(url: Url): String? {
-    val response = httpService.get(url, acceptHeader = ContentType.Text.Any)
-    return response.headers[HttpHeaders.Location]
-  }
-
-  suspend fun tokenExchange(url: String, tokenExchangeParams: TokenExchangeParams): TokenResponse {
-    logging.debug("OIDCHandlerService: Attempting token exchange")
-    val httpResponse = httpService.postForm(url, tokenExchangeParams.toParameters())
-
-    if (httpResponse.status.value != 200) {
-      logging.error(
-          "OIDCHandlerService: Token exchange failed with status code ${httpResponse.status.value}")
-      throw HttpError(statusCode = httpResponse.status.value)
-    }
-    return httpResponse.body()
-  }
-
-  suspend fun tokenRefresh(url: String, tokenRefreshParams: TokenRefreshParams): TokenResponse {
-    logging.debug("OIDCHandlerService: Attempting token refresh")
-    val httpResponse = httpService.postForm(url, tokenRefreshParams.toParameters())
-
-    if (httpResponse.status.value != 200) {
-      logging.error(
-          "OIDCHandlerService: Token refresh failed with status code ${httpResponse.status.value}")
-      throw HttpError(statusCode = httpResponse.status.value)
-    }
-    return httpResponse.body()
-  }
-
-  suspend fun revokeToken(
-      issuer: String,
-      token: String,
-      typeHint: String,
-      clientId: String
-  ): HttpResponse {
-    val url = URLBuilder(issuer).apply { path("/oauth2/revoke") }
-
-    val httpResponse =
-        httpService.postForm(
-            url.buildString(),
-            parameters {
-              append("client_id", clientId)
-              append("token_type_hint", typeHint)
-              append("token", token)
-            })
-
-    if (httpResponse.status != HttpStatusCode.OK) {
-      throw HttpError(statusCode = httpResponse.status.value)
+    suspend fun logout(url: Url): String? {
+        val response = httpService.get(url, acceptHeader = ContentType.Text.Any)
+        return response.headers[HttpHeaders.Location]
     }
 
-    return httpResponse
-  }
+    suspend fun tokenExchange(
+        url: String,
+        tokenExchangeParams: TokenExchangeParams,
+    ): TokenResponse {
+        logging.debug("OIDCHandlerService: Attempting token exchange")
+        val httpResponse = httpService.postForm(url, tokenExchangeParams.toParameters())
+
+        if (httpResponse.status.value != 200) {
+            logging.error(
+                "OIDCHandlerService: Token exchange failed with status code ${httpResponse.status.value}",
+            )
+            throw HttpError(statusCode = httpResponse.status.value)
+        }
+        return httpResponse.body()
+    }
+
+    suspend fun tokenRefresh(
+        url: String,
+        tokenRefreshParams: TokenRefreshParams,
+    ): TokenResponse {
+        logging.debug("OIDCHandlerService: Attempting token refresh")
+        val httpResponse = httpService.postForm(url, tokenRefreshParams.toParameters())
+
+        if (httpResponse.status.value != 200) {
+            logging.error(
+                "OIDCHandlerService: Token refresh failed with status code ${httpResponse.status.value}",
+            )
+            throw HttpError(statusCode = httpResponse.status.value)
+        }
+        return httpResponse.body()
+    }
+
+    suspend fun revokeToken(
+        issuer: String,
+        token: String,
+        typeHint: String,
+        clientId: String,
+    ): HttpResponse {
+        val url = URLBuilder(issuer).apply { path("/oauth2/revoke") }
+
+        val httpResponse =
+            httpService.postForm(
+                url.buildString(),
+                parameters {
+                    append("client_id", clientId)
+                    append("token_type_hint", typeHint)
+                    append("token", token)
+                },
+            )
+
+        if (httpResponse.status != HttpStatusCode.OK) {
+            throw HttpError(statusCode = httpResponse.status.value)
+        }
+
+        return httpResponse
+    }
 }
 
 internal class OidcParams(
     val onSuccess: () -> Unit,
     val onError: (Error) -> Unit,
 ) {
-  val codeVerifier: String = OIDCParamGenerator.generateRandomString(32)
-  val codeChallenge: String = OIDCParamGenerator.generateCodeChallenge(codeVerifier)
-  val state: String = OIDCParamGenerator.generateRandomString(16)
-  val nonce: String = OIDCParamGenerator.generateRandomString(16)
+    val codeVerifier: String = OIDCParamGenerator.generateRandomString(32)
+    val codeChallenge: String = OIDCParamGenerator.generateCodeChallenge(codeVerifier)
+    val state: String = OIDCParamGenerator.generateRandomString(16)
+    val nonce: String = OIDCParamGenerator.generateRandomString(16)
 }
 
 internal data class TokenExchangeParams(
@@ -119,26 +130,27 @@ internal data class TokenExchangeParams(
     val clientId: String,
     val nonce: String = OIDCParamGenerator.generateRandomString(16),
 ) {
-  fun toParameters(): Parameters {
-    return parameters {
-      append("grant_type", "authorization_code")
-      append("code", code)
-      append("redirect_uri", redirectURI)
-      append("client_id", clientId)
-      append("code_verifier", codeVerifier)
-      append("nonce", nonce)
-    }
-  }
+    fun toParameters(): Parameters =
+        parameters {
+            append("grant_type", "authorization_code")
+            append("code", code)
+            append("redirect_uri", redirectURI)
+            append("client_id", clientId)
+            append("code_verifier", codeVerifier)
+            append("nonce", nonce)
+        }
 }
 
-internal data class TokenRefreshParams(val refreshToken: String, val clientId: String) {
-  fun toParameters(): Parameters {
-    return parameters {
-      append("grant_type", "refresh_token")
-      append("refresh_token", refreshToken)
-      append("client_id", clientId)
-    }
-  }
+internal data class TokenRefreshParams(
+    val refreshToken: String,
+    val clientId: String,
+) {
+    fun toParameters(): Parameters =
+        parameters {
+            append("grant_type", "refresh_token")
+            append("refresh_token", refreshToken)
+            append("client_id", clientId)
+        }
 }
 
 @Serializable

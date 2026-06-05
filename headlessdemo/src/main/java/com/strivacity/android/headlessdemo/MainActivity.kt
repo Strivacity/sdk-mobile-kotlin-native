@@ -49,185 +49,222 @@ import com.strivacity.android.native_sdk.NativeSDK
 import com.strivacity.android.native_sdk.OidcError
 import com.strivacity.android.native_sdk.SdkMode
 import com.strivacity.android.native_sdk.SessionExpiredError
-import java.lang.ref.WeakReference
 import kotlinx.coroutines.launch
+import java.lang.ref.WeakReference
 
 class MainActivity : ComponentActivity() {
-  override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
-    enableEdgeToEdge()
-    setContent { SdkmobilekotlinnativeTheme { Main() } }
-  }
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContent { SdkmobilekotlinnativeTheme { Main() } }
+    }
 
-  override fun onNewIntent(intent: Intent, caller: ComponentCaller) {
-    super.onNewIntent(intent, caller)
-    setIntent(intent)
-  }
+    override fun onNewIntent(
+        intent: Intent,
+        caller: ComponentCaller,
+    ) {
+        super.onNewIntent(intent, caller)
+        setIntent(intent)
+    }
 }
 
 @Composable
 fun Main() {
-  val context = LocalContext.current
-  val nativeSDK by remember {
-    mutableStateOf(
-        NativeSDK(
-            "https://example.org",
-            "",
-            "android://native-flow",
-            "android://native-flow",
-            SharedPreferenceStorage(
-                context.getSharedPreferences("kotlin-demo", Context.MODE_PRIVATE)),
-            mode = SdkMode.AndroidMinimal))
-  }
+    val context = LocalContext.current
+    val nativeSDK by remember {
+        mutableStateOf(
+            NativeSDK(
+                "https://example.org",
+                "",
+                "android://native-flow",
+                "android://native-flow",
+                SharedPreferenceStorage(
+                    context.getSharedPreferences("kotlin-demo", Context.MODE_PRIVATE),
+                ),
+                mode = SdkMode.AndroidMinimal,
+            ),
+        )
+    }
 
-  Scaffold(modifier = Modifier.fillMaxSize(), floatingActionButton = { CancelFAB(nativeSDK) }) {
-      innerPadding ->
-    Box(
-        modifier = Modifier.fillMaxSize().padding(innerPadding),
-        contentAlignment = Alignment.Center) {
-          Login(nativeSDK)
+    Scaffold(modifier = Modifier.fillMaxSize(), floatingActionButton = {
+        CancelFAB(nativeSDK)
+    }) { innerPadding ->
+        Box(
+            modifier = Modifier.fillMaxSize().padding(innerPadding),
+            contentAlignment = Alignment.Center,
+        ) {
+            Login(nativeSDK)
         }
-  }
+    }
 }
 
 @Composable
 fun CancelFAB(nativeSDK: NativeSDK) {
-  val loginInProgress by nativeSDK.session.loginInProgress.collectAsState()
+    val loginInProgress by nativeSDK.session.loginInProgress.collectAsState()
 
-  if (loginInProgress) {
-    FloatingActionButton(
-        onClick = { nativeSDK.cancelFlow() },
-    ) {
-      Icon(Icons.Filled.Close, "Cancel login flow")
+    if (loginInProgress) {
+        FloatingActionButton(
+            onClick = { nativeSDK.cancelFlow() },
+        ) {
+            Icon(Icons.Filled.Close, "Cancel login flow")
+        }
     }
-  }
 }
 
 @Composable
 fun Login(nativeSDK: NativeSDK) {
-  val coroutineScope = rememberCoroutineScope()
-  val loginInProgress by nativeSDK.session.loginInProgress.collectAsState()
-  val profile by nativeSDK.session.profile.collectAsState()
+    val coroutineScope = rememberCoroutineScope()
+    val loginInProgress by nativeSDK.session.loginInProgress.collectAsState()
+    val profile by nativeSDK.session.profile.collectAsState()
 
-  var error by remember { mutableStateOf(null as Error?) }
-  var loading by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf(null as Error?) }
+    var loading by remember { mutableStateOf(true) }
 
-  val context = LocalContext.current
+    val context = LocalContext.current
 
-  DisposableEffect(Unit) {
-    val activity = context as? ComponentActivity
-    val lifecycle = activity?.lifecycle
-    val observer = LifecycleEventObserver { _, event ->
-      if (event == Lifecycle.Event.ON_RESUME && nativeSDK.isRedirectExpected()) {
-        coroutineScope.launch {
-          val uri =
-              when (activity?.intent?.data) {
-                null -> null
-                else -> activity.intent?.data.toString()
-              }
+    DisposableEffect(Unit) {
+        val activity = context as? ComponentActivity
+        val lifecycle = activity?.lifecycle
+        val observer =
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME && nativeSDK.isRedirectExpected()) {
+                    coroutineScope.launch {
+                        val uri =
+                            when (activity?.intent?.data) {
+                                null -> null
+                                else -> activity.intent?.data.toString()
+                            }
 
-          try {
-            nativeSDK.continueFlow(uri)
-          } catch (e: Error) {
-            error = e
-          }
-        }
-      }
-    }
-
-    lifecycle?.addObserver(observer)
-
-    onDispose { lifecycle?.removeObserver(observer) }
-  }
-
-  if (loading) {
-    Text("Loading...")
-  } else {
-    if (profile != null) {
-      ProfileView(nativeSDK)
-    } else if (loginInProgress) {
-      LoginScreen(nativeSDK)
-    } else {
-
-      var audiences by remember { mutableStateOf("") }
-
-      Column {
-        CustomAudienceInput(audiences = audiences, onAudiencesChanges = { audiences = it })
-
-        Button(
-            colors = ButtonDefaults.buttonColors(containerColor = StrivacityPrimary),
-            onClick = {
-              coroutineScope.launch {
-                error = null
-                try {
-                  nativeSDK.login(
-                      WeakReference(context),
-                      {},
-                      { error = it },
-                      LoginParameters(
-                          scopes = listOf("openid", "profile", "email", "offline"),
-                          audiences = audiences.split(' ')))
-                } catch (e: Error) {
-                  error = e
+                        try {
+                            nativeSDK.continueFlow(uri)
+                        } catch (e: Error) {
+                            error = e
+                        }
+                    }
                 }
-              }
-            }) {
-              Text("Login")
             }
 
-        when (error) {
-          null -> {} // no error
+        lifecycle?.addObserver(observer)
 
-          is OidcError ->
-              Text(
-                  (error as OidcError).errorDescription ?: (error as OidcError).error,
-                  color = Color.Red)
+        onDispose { lifecycle?.removeObserver(observer) }
+    }
 
-          is HostedFlowCanceledError -> Text("Hosted flow canceled", color = Color.Red)
-          is SessionExpiredError -> Text("Session expired", color = Color.Red)
+    if (loading) {
+        Text("Loading...")
+    } else {
+        if (profile != null) {
+            ProfileView(nativeSDK)
+        } else if (loginInProgress) {
+            LoginScreen(nativeSDK)
+        } else {
+            var audiences by remember { mutableStateOf("") }
 
-          else -> Text("N/A", color = Color.Red)
+            Column {
+                CustomAudienceInput(audiences = audiences, onAudiencesChanges = { audiences = it })
+
+                Button(
+                    colors = ButtonDefaults.buttonColors(containerColor = StrivacityPrimary),
+                    onClick = {
+                        coroutineScope.launch {
+                            error = null
+                            try {
+                                nativeSDK.login(
+                                    WeakReference(context),
+                                    {},
+                                    { error = it },
+                                    LoginParameters(
+                                        scopes = listOf("openid", "profile", "email", "offline"),
+                                        audiences = audiences.split(' '),
+                                    ),
+                                )
+                            } catch (e: Error) {
+                                error = e
+                            }
+                        }
+                    },
+                ) {
+                    Text("Login")
+                }
+
+                when (error) {
+                    null -> {}
+
+                    // no error
+
+                    is OidcError -> {
+                        Text(
+                            (error as OidcError).errorDescription ?: (error as OidcError).error,
+                            color = Color.Red,
+                        )
+                    }
+
+                    is HostedFlowCanceledError -> {
+                        Text("Hosted flow canceled", color = Color.Red)
+                    }
+
+                    is SessionExpiredError -> {
+                        Text("Session expired", color = Color.Red)
+                    }
+
+                    else -> {
+                        Text("N/A", color = Color.Red)
+                    }
+                }
+            }
         }
-      }
     }
-  }
 
-  LaunchedEffect(Unit) {
-    coroutineScope.launch {
-      try {
-        nativeSDK.initializeSession()
-      } catch (e: Throwable) {
-        Toast.makeText(context, "Failed to initialize ${e.message}", Toast.LENGTH_SHORT).show()
-      }
-      loading = false
+    LaunchedEffect(Unit) {
+        coroutineScope.launch {
+            try {
+                nativeSDK.initializeSession()
+            } catch (e: Throwable) {
+                Toast
+                    .makeText(
+                        context,
+                        "Failed to initialize ${e.message}",
+                        Toast.LENGTH_SHORT,
+                    ).show()
+            }
+            loading = false
+        }
     }
-  }
 }
 
 @Composable
-fun CustomAudienceInput(audiences: String, onAudiencesChanges: (String) -> Unit) {
-  val uriHandler = LocalUriHandler.current
-  val context = LocalContext.current
+fun CustomAudienceInput(
+    audiences: String,
+    onAudiencesChanges: (String) -> Unit,
+) {
+    val uriHandler = LocalUriHandler.current
+    val context = LocalContext.current
 
-  OutlinedTextField(
-      value = audiences,
-      onValueChange = onAudiencesChanges,
-      label = { Text("Custom audiences") },
-      supportingText = { Text("Optional values separated by space") },
-      trailingIcon = {
-        IconButton(
-            onClick = {
-              try {
-                uriHandler.openUri(
-                    "https://docs.strivacity.com/docs/oauth2-oidc-properties-setup#allowed-custom-audiences")
-              } catch (ex: IllegalArgumentException) {
-                Log.e("LOGIN", "Could not open documentation U", ex)
-                Toast.makeText(context, "Could not open documentation", Toast.LENGTH_SHORT).show()
-              }
+    OutlinedTextField(
+        value = audiences,
+        onValueChange = onAudiencesChanges,
+        label = { Text("Custom audiences") },
+        supportingText = { Text("Optional values separated by space") },
+        trailingIcon = {
+            IconButton(onClick = {
+                try {
+                    uriHandler.openUri(
+                        "https://docs.strivacity.com/docs/oauth2-oidc-properties-setup#allowed-custom-audiences",
+                    )
+                } catch (ex: IllegalArgumentException) {
+                    Log.e("LOGIN", "Could not open documentation U", ex)
+                    Toast
+                        .makeText(
+                            context,
+                            "Could not open documentation",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                }
             }) {
-              Icon(
-                  imageVector = Icons.Outlined.Info,
-                  contentDescription = "Documentation about Strivacity Custom Audiences")
+                Icon(
+                    imageVector = Icons.Outlined.Info,
+                    contentDescription = "Documentation about Strivacity Custom Audiences",
+                )
             }
-      })
+        },
+    )
 }

@@ -13,48 +13,56 @@ import com.strivacity.android.native_sdk.render.models.VerticalLayout
 import com.strivacity.android.native_sdk.render.models.WidgetLayout
 
 @Composable
-fun Layout(loginController: LoginController, screen: Screen, layout: Layout) {
-  when (layout) {
-    is HorizontalLayout -> HorizontalLayout(loginController, screen, layout)
-    is VerticalLayout -> VerticalLayout(loginController, screen, layout)
-    is WidgetLayout -> WidgetLayout(loginController, screen, layout)
-  }
+fun Layout(
+    loginController: LoginController,
+    screen: Screen,
+    layout: Layout,
+) {
+    when (layout) {
+        is HorizontalLayout -> HorizontalLayout(loginController, screen, layout)
+        is VerticalLayout -> VerticalLayout(loginController, screen, layout)
+        is WidgetLayout -> WidgetLayout(loginController, screen, layout)
+    }
 }
 
 @Composable
 fun HorizontalLayout(
     loginController: LoginController,
     screen: Screen,
-    horizontalLayout: HorizontalLayout
+    horizontalLayout: HorizontalLayout,
 ) {
-  LazyRow(verticalAlignment = Alignment.CenterVertically) {
-    items(horizontalLayout.items) { item -> Layout(loginController, screen, item) }
-  }
+    LazyRow(verticalAlignment = Alignment.CenterVertically) {
+        items(horizontalLayout.items) { item -> Layout(loginController, screen, item) }
+    }
 }
 
 @Composable
 fun VerticalLayout(
     loginController: LoginController,
     screen: Screen,
-    verticalLayout: VerticalLayout
+    verticalLayout: VerticalLayout,
 ) {
-  LazyColumn(horizontalAlignment = Alignment.CenterHorizontally) {
-    items(verticalLayout.items) { item -> Layout(loginController, screen, item) }
-  }
+    LazyColumn(horizontalAlignment = Alignment.CenterHorizontally) {
+        items(verticalLayout.items) { item -> Layout(loginController, screen, item) }
+    }
 }
 
 @Composable
-fun WidgetLayout(loginController: LoginController, screen: Screen, widgetLayout: WidgetLayout) {
-  val widget =
-      screen.forms
-          ?.find { it.id == widgetLayout.formId }
-          ?.widgets
-          ?.find { it.id == widgetLayout.widgetId }
+fun WidgetLayout(
+    loginController: LoginController,
+    screen: Screen,
+    widgetLayout: WidgetLayout,
+) {
+    val widget =
+        screen.forms
+            ?.find { it.id == widgetLayout.formId }
+            ?.widgets
+            ?.find { it.id == widgetLayout.widgetId }
 
-  if (widget == null) {
-    loginController.triggerFallback()
-    return
-  }
+    if (widget == null) {
+        loginController.triggerFallback()
+        return
+    }
 
-  Widget(loginController, screen, widget, widgetLayout.formId, widgetLayout.widgetId)
+    Widget(loginController, screen, widget, widgetLayout.formId, widgetLayout.widgetId)
 }

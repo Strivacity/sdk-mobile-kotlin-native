@@ -34,50 +34,61 @@ import com.strivacity.android.native_sdk.render.models.StaticWidget
 import kotlinx.coroutines.launch
 
 @Composable
-fun PasswordView(screen: Screen, headlessAdapter: HeadlessAdapter) {
-  val messages by headlessAdapter.messages().collectAsState()
+fun PasswordView(
+    screen: Screen,
+    headlessAdapter: HeadlessAdapter,
+) {
+    val messages by headlessAdapter.messages().collectAsState()
 
-  val coroutineScope = rememberCoroutineScope()
+    val coroutineScope = rememberCoroutineScope()
 
-  var password by remember { mutableStateOf("") }
-  var keepMeLoggedIn by remember {
-    mutableStateOf(
+    var password by remember { mutableStateOf("") }
+    var keepMeLoggedIn by remember {
+        mutableStateOf(
+            screen.forms
+                ?.find { it.id == "password" }
+                ?.widgets
+                ?.find { it.id == "keepMeLoggedIn" }
+                ?.value() as Boolean? ?: false,
+        )
+    }
+
+    val identifierWidget =
         screen.forms
-            ?.find { it.id == "password" }
+            ?.find { it.id == "reset" }
             ?.widgets
-            ?.find { it.id == "keepMeLoggedIn" }
-            ?.value() as Boolean? ?: false)
-  }
+            ?.find { it.id == "identifier" }
 
-  val identifierWidget =
-      screen.forms?.find { it.id == "reset" }?.widgets?.find { it.id == "identifier" }
+    val identifier =
+        when (identifierWidget) {
+            is StaticWidget -> {
+                identifierWidget.value
+            }
 
-  val identifier =
-      when (identifierWidget) {
-        is StaticWidget -> {
-          identifierWidget.value
+            else -> {
+                ""
+            }
         }
-        else -> ""
-      }
 
-  Column(
-      horizontalAlignment = Alignment.CenterHorizontally,
-      verticalArrangement = Arrangement.spacedBy(10.dp),
-      modifier = Modifier.fillMaxWidth().padding(35.dp)) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.fillMaxWidth().padding(35.dp),
+    ) {
         Text("Enter password", fontSize = 24.sp, fontWeight = FontWeight.W600)
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center) {
-              Text(identifier)
-              TextButton(
-                  onClick = {
-                    coroutineScope.launch { headlessAdapter.submit("reset", mapOf()) }
-                  }) {
-                    Text("Not you?")
-                  }
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            Text(identifier)
+            TextButton(onClick = {
+                coroutineScope.launch { headlessAdapter.submit("reset", mapOf()) }
+            }) {
+                Text("Not you?")
             }
+        }
 
         TextField(
             value = password,
@@ -85,35 +96,41 @@ fun PasswordView(screen: Screen, headlessAdapter: HeadlessAdapter) {
             label = { Text("Enter your password") },
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            modifier = Modifier.fillMaxWidth())
+            modifier = Modifier.fillMaxWidth(),
+        )
         val errorMessage = messages?.errorMessageForWidget("password", "password")
         if (errorMessage != null) {
-          Text(errorMessage, color = Color.Red, modifier = Modifier.fillMaxWidth())
+            Text(errorMessage, color = Color.Red, modifier = Modifier.fillMaxWidth())
         }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Start,
-            verticalAlignment = Alignment.CenterVertically) {
-              Checkbox(keepMeLoggedIn, { keepMeLoggedIn = it })
-              Text("Keep me logged in")
-            }
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Checkbox(keepMeLoggedIn, { keepMeLoggedIn = it })
+            Text("Keep me logged in")
+        }
 
         Button(
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = StrivacityPrimary),
             onClick = {
-              coroutineScope.launch {
-                headlessAdapter.submit(
-                    "password", mapOf("password" to password, "keepMeLoggedIn" to keepMeLoggedIn))
-              }
-            }) {
-              Text("Continue")
-            }
+                coroutineScope.launch {
+                    headlessAdapter.submit(
+                        "password",
+                        mapOf("password" to password, "keepMeLoggedIn" to keepMeLoggedIn),
+                    )
+                }
+            },
+        ) {
+            Text("Continue")
+        }
 
         TextButton(
-            onClick = { coroutineScope.launch { headlessAdapter.submit("reset", mapOf()) } }) {
-              Text("Back to login")
-            }
-      }
+            onClick = { coroutineScope.launch { headlessAdapter.submit("reset", mapOf()) } },
+        ) {
+            Text("Back to login")
+        }
+    }
 }

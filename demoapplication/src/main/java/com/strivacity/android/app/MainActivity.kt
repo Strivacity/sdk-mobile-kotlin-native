@@ -56,283 +56,327 @@ import kotlinx.coroutines.launch
 import java.lang.ref.WeakReference
 
 class MainActivity : ComponentActivity() {
+    private val workflowErrorToIdMessage: Map<WorkflowError.WorkflowErrorId, String> =
+        mapOf(
+            WorkflowError.WorkflowErrorId.MAGIC_LINK_EXPIRED to "Your link has expired",
+            WorkflowError.WorkflowErrorId.CLIENT_MISMATCH to
+                "An unexpected error occurred, please try again (001)",
+            WorkflowError.WorkflowErrorId.INVALID_REDIRECT_URI to
+                "An unexpected error occurred, please try again (002)",
+        )
 
-  private val WORKFLOW_ERROR_ID_TO_MESSAGE: Map<WorkflowError.WorkflowErrorId, String> =
-      mapOf(
-          WorkflowError.WorkflowErrorId.MAGIC_LINK_EXPIRED to "Your link has expired",
-          WorkflowError.WorkflowErrorId.CLIENT_MISMATCH to
-              "An unexpected error occurred, please try again (001)",
-          WorkflowError.WorkflowErrorId.INVALID_REDIRECT_URI to
-              "An unexpected error occurred, please try again (002)")
+    private lateinit var nativeSDK: NativeSDK
+    private lateinit var customTabsHandler: FallbackHandler
 
-  private val ISSUER: String = "https://example.org"
-  private val CLIENT_ID: String = ""
-  private val REDIRECT_URI: String = "android://native-flow"
-  private val POST_LOGOUT_URI: String = "android://native-flow"
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
 
-  private lateinit var nativeSDK: NativeSDK
-  private lateinit var customTabsHandler: FallbackHandler
+        nativeSDK =
+            NativeSDK(
+                ISSUER,
+                CLIENT_ID,
+                REDIRECT_URI,
+                POST_LOGOUT_URI,
+                SharedPreferenceStorage(getSharedPreferences("kotlin-demo", MODE_PRIVATE)),
+            )
 
-  override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
-
-    nativeSDK =
-        NativeSDK(
-            ISSUER,
-            CLIENT_ID,
-            REDIRECT_URI,
-            POST_LOGOUT_URI,
-            SharedPreferenceStorage(getSharedPreferences("kotlin-demo", MODE_PRIVATE)))
-
-    customTabsHandler = { uri: String ->
-      this.run {
-        val customTabsIntent = CustomTabsIntent.Builder().build()
-        customTabsIntent.launchUrl(applicationContext, uri.toUri())
-      }
-    }
-
-    enableEdgeToEdge()
-    setContent { SdkmobilekotlinnativeTheme { Main() } }
-
-    handleEntry(intent)
-  }
-
-  override fun onNewIntent(intent: Intent, caller: ComponentCaller) {
-    super.onNewIntent(intent, caller)
-    handleEntry(intent)
-    setIntent(intent)
-  }
-
-  private fun handleEntry(intent: Intent) {
-    if (intent.dataString == null || intent.dataString == REDIRECT_URI) {
-      return
-    }
-
-    lifecycleScope.launch {
-      nativeSDK.entry(
-        intent.data,
-        customTabsHandler,
-        {},
-        { e ->
-          var mappedErrorMessage: String? = null
-          if (e is WorkflowError) {
-            val idValue: String = e.error
-            val errorId: WorkflowError.WorkflowErrorId? =
-              WorkflowError.WorkflowErrorId.valueOfId(idValue)
-            mappedErrorMessage = WORKFLOW_ERROR_ID_TO_MESSAGE[errorId]
-          }
-
-          val toastText = mappedErrorMessage ?: "Something bad happened, please try again"
-          lifecycleScope.launch {
-            Toast.makeText(this@MainActivity, toastText, Toast.LENGTH_SHORT).show()
-          }
-        },
-        context = this@MainActivity
-      )
-    }
-  }
-
-  @Composable
-  fun Main() {
-    Scaffold(
-        modifier = Modifier.fillMaxSize(), floatingActionButton = { CancelFAB(nativeSDK) }) {
-            innerPadding ->
-          Box(
-              modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-              contentAlignment = Alignment.Center) {
-                Login(nativeSDK)
-              }
+        customTabsHandler = { uri: String ->
+            this.run {
+                val customTabsIntent = CustomTabsIntent.Builder().build()
+                customTabsIntent.launchUrl(applicationContext, uri.toUri())
+            }
         }
-  }
+
+        enableEdgeToEdge()
+        setContent { SdkmobilekotlinnativeTheme { Main() } }
+
+        handleEntry(intent)
+    }
+
+    override fun onNewIntent(
+        intent: Intent,
+        caller: ComponentCaller,
+    ) {
+        super.onNewIntent(intent, caller)
+        handleEntry(intent)
+        setIntent(intent)
+    }
+
+    private fun handleEntry(intent: Intent) {
+        if (intent.dataString == null || intent.dataString == REDIRECT_URI) {
+            return
+        }
+
+        lifecycleScope.launch {
+            nativeSDK.entry(
+                intent.data,
+                customTabsHandler,
+                {},
+                { e ->
+                    var mappedErrorMessage: String? = null
+                    if (e is WorkflowError) {
+                        val idValue: String = e.error
+                        val errorId: WorkflowError.WorkflowErrorId? =
+                            WorkflowError.WorkflowErrorId.valueOfId(idValue)
+                        mappedErrorMessage = workflowErrorToIdMessage[errorId]
+                    }
+
+                    val toastText = mappedErrorMessage ?: "Something bad happened, please try again"
+                    lifecycleScope.launch {
+                        Toast.makeText(this@MainActivity, toastText, Toast.LENGTH_SHORT).show()
+                    }
+                },
+                context = this@MainActivity,
+            )
+        }
+    }
+
+    @Composable
+    fun Main() {
+        Scaffold(modifier = Modifier.fillMaxSize(), floatingActionButton = {
+            CancelFAB(nativeSDK)
+        }) { innerPadding ->
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                contentAlignment = Alignment.Center,
+            ) {
+                Login(nativeSDK)
+            }
+        }
+    }
+
+    companion object {
+        private const val ISSUER: String = "https://example.org"
+        private const val CLIENT_ID: String = ""
+        private const val REDIRECT_URI: String = "android://native-flow"
+        private const val POST_LOGOUT_URI: String = "android://native-flow"
+    }
 }
 
 @Composable
 fun CancelFAB(nativeSDK: NativeSDK) {
-  val loginInProgress by nativeSDK.session.loginInProgress.collectAsState()
+    val loginInProgress by nativeSDK.session.loginInProgress.collectAsState()
 
-  if (loginInProgress) {
-    FloatingActionButton(
-        onClick = { nativeSDK.cancelFlow() },
-    ) {
-      Icon(Icons.Filled.Close, "Cancel login flow")
+    if (loginInProgress) {
+        FloatingActionButton(
+            onClick = { nativeSDK.cancelFlow() },
+        ) {
+            Icon(Icons.Filled.Close, "Cancel login flow")
+        }
     }
-  }
 }
 
 @Composable
 fun Login(nativeSDK: NativeSDK) {
-  val coroutineScope = rememberCoroutineScope()
-  val loginInProgress by nativeSDK.session.loginInProgress.collectAsState()
-  val profile by nativeSDK.session.profile.collectAsState()
+    val coroutineScope = rememberCoroutineScope()
+    val loginInProgress by nativeSDK.session.loginInProgress.collectAsState()
+    val profile by nativeSDK.session.profile.collectAsState()
 
-  var error by remember { mutableStateOf(null as Error?) }
-  var loading by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf(null as Error?) }
+    var loading by remember { mutableStateOf(true) }
 
-  val context = LocalContext.current
+    val context = LocalContext.current
 
-  DisposableEffect(Unit) {
-    val activity = context as? ComponentActivity
-    val lifecycle = activity?.lifecycle
-    val observer = LifecycleEventObserver { _, event ->
-      if (event == Lifecycle.Event.ON_RESUME && nativeSDK.isRedirectExpected()) {
-        coroutineScope.launch {
-          val uri =
-              when (activity?.intent?.data) {
-                null -> null
-                else -> activity.intent?.data.toString()
-              }
+    DisposableEffect(Unit) {
+        val activity = context as? ComponentActivity
+        val lifecycle = activity?.lifecycle
+        val observer =
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME && nativeSDK.isRedirectExpected()) {
+                    coroutineScope.launch {
+                        val uri =
+                            when (activity?.intent?.data) {
+                                null -> null
+                                else -> activity.intent?.data.toString()
+                            }
 
-          try {
-            nativeSDK.continueFlow(uri)
-          } catch (e: Error) {
-            error = e
-          }
-        }
-      }
+                        try {
+                            nativeSDK.continueFlow(uri)
+                        } catch (e: Error) {
+                            error = e
+                        }
+                    }
+                }
+            }
+
+        lifecycle?.addObserver(observer)
+
+        onDispose { lifecycle?.removeObserver(observer) }
     }
 
-    lifecycle?.addObserver(observer)
-
-    onDispose { lifecycle?.removeObserver(observer) }
-  }
-
-  if (loading) {
-    Text("Loading...")
-  } else {
-    if (profile != null) {
-      Column {
-        Text("Hello ${profile!!.claims["given_name"]}")
-        Button(onClick = { coroutineScope.launch { nativeSDK.logout() } }) { Text("Logout") }
-        Button(onClick = { coroutineScope.launch { nativeSDK.revoke() } }) {Text("Revoke")}
-        Button(
-            onClick = {
-              coroutineScope.launch {
-                try {
-                  val accessToken = nativeSDK.getAccessToken()
-                  // println(accessToken) // uncomment to fetch access token from the log during
-                  // development
-                  Toast.makeText(context, accessToken, Toast.LENGTH_LONG).show()
-                } catch (e: Throwable) {
-                  Toast.makeText(
-                          context, "Unable to fetch access token ${e.message}", Toast.LENGTH_LONG)
-                      .show()
-                }
-              }
-            }) {
-              Text("Get Access Token")
-            }
-
-        Button(
-            onClick = {
-              coroutineScope.launch {
-                val idToken = profile!!.idToken
-                println(idToken)
-                Toast.makeText(context, idToken, Toast.LENGTH_LONG).show()
-              }
-            }) {
-              Text("Get ID Token")
-            }
-      }
-    } else if (loginInProgress) {
-      LoginView(nativeSDK.loginController!!)
+    if (loading) {
+        Text("Loading...")
     } else {
-
-      var audiences by remember { mutableStateOf("") }
-
-      Column {
-        CustomAudienceInput(audiences = audiences, onAudiencesChanges = { audiences = it })
-        Button(
-            onClick = {
-              coroutineScope.launch {
-                error = null
-                try {
-                  nativeSDK.login(
-                      WeakReference(context),
-                      {},
-                      { error = it },
-                      LoginParameters(
-                          scopes = listOf("openid", "profile", "offline"),
-                          audiences = audiences.split(" ")))
-                } catch (e: Error) {
-                  error = e
+        if (profile != null) {
+            Column {
+                Text("Hello ${profile!!.claims["given_name"]}")
+                Button(
+                    onClick = { coroutineScope.launch { nativeSDK.logout() } },
+                ) { Text("Logout") }
+                Button(
+                    onClick = { coroutineScope.launch { nativeSDK.revoke() } },
+                ) { Text("Revoke") }
+                Button(onClick = {
+                    coroutineScope.launch {
+                        try {
+                            val accessToken = nativeSDK.getAccessToken()
+                            // println(accessToken) // uncomment to fetch access token from the log during
+                            // development
+                            Toast.makeText(context, accessToken, Toast.LENGTH_LONG).show()
+                        } catch (e: Throwable) {
+                            Toast
+                                .makeText(
+                                    context,
+                                    "Unable to fetch access token ${e.message}",
+                                    Toast.LENGTH_LONG,
+                                ).show()
+                        }
+                    }
+                }) {
+                    Text("Get Access Token")
                 }
-              }
-            }) {
-              Text("Login")
+
+                Button(onClick = {
+                    coroutineScope.launch {
+                        val idToken = profile!!.idToken
+                        println(idToken)
+                        Toast.makeText(context, idToken, Toast.LENGTH_LONG).show()
+                    }
+                }) {
+                    Text("Get ID Token")
+                }
             }
+        } else if (loginInProgress) {
+            LoginView(nativeSDK.loginController!!)
+        } else {
+            var audiences by remember { mutableStateOf("") }
 
-        when (error) {
-          null -> {} // no error
+            Column {
+                CustomAudienceInput(audiences = audiences, onAudiencesChanges = { audiences = it })
+                Button(onClick = {
+                    coroutineScope.launch {
+                        error = null
+                        try {
+                            nativeSDK.login(
+                                WeakReference(context),
+                                {},
+                                { error = it },
+                                LoginParameters(
+                                    scopes = listOf("openid", "profile", "offline"),
+                                    audiences = audiences.split(" "),
+                                ),
+                            )
+                        } catch (e: Error) {
+                            error = e
+                        }
+                    }
+                }) {
+                    Text("Login")
+                }
 
-          is OidcError ->
-              Text(
-                  (error as OidcError).errorDescription ?: (error as OidcError).error,
-                  color = Color.Red)
+                when (error) {
+                    null -> {}
 
-          is HostedFlowCanceledError -> Text("Hosted flow canceled", color = Color.Red)
-          is SessionExpiredError -> Text("Session expired", color = Color.Red)
+                    // no error
 
-          else -> Text("N/A", color = Color.Red)
+                    is OidcError -> {
+                        Text(
+                            (error as OidcError).errorDescription ?: (error as OidcError).error,
+                            color = Color.Red,
+                        )
+                    }
+
+                    is HostedFlowCanceledError -> {
+                        Text("Hosted flow canceled", color = Color.Red)
+                    }
+
+                    is SessionExpiredError -> {
+                        Text("Session expired", color = Color.Red)
+                    }
+
+                    else -> {
+                        Text("N/A", color = Color.Red)
+                    }
+                }
+            }
         }
-      }
     }
-  }
 
-  LaunchedEffect(Unit) {
-    coroutineScope.launch {
-      try {
-        nativeSDK.initializeSession()
-      } catch (e: Throwable) {
-        Toast.makeText(context, "Failed to initialize ${e.message}", Toast.LENGTH_SHORT).show()
-      }
-      loading = false
+    LaunchedEffect(Unit) {
+        coroutineScope.launch {
+            try {
+                nativeSDK.initializeSession()
+            } catch (e: Throwable) {
+                Toast
+                    .makeText(
+                        context,
+                        "Failed to initialize ${e.message}",
+                        Toast.LENGTH_SHORT,
+                    ).show()
+            }
+            loading = false
+        }
     }
-  }
 }
 
 @Composable
 fun LoginView(loginController: LoginController) {
-  val screen by loginController.screen.collectAsState()
-  val layout = screen?.layout
-  Layout(loginController, screen!!, layout!!)
+    val screen by loginController.screen.collectAsState()
+    val layout = screen?.layout
+    Layout(loginController, screen!!, layout!!)
 
-  val messages by loginController.messages.collectAsState()
-  when (messages) {
-    is GlobalMessages -> {
-      Toast.makeText(
-              LocalContext.current, (messages as GlobalMessages).global.text, Toast.LENGTH_LONG)
-          .show()
+    val messages by loginController.messages.collectAsState()
+    when (messages) {
+        is GlobalMessages -> {
+            Toast
+                .makeText(
+                    LocalContext.current,
+                    (messages as GlobalMessages).global.text,
+                    Toast.LENGTH_LONG,
+                ).show()
+        }
+
+        else -> {}
     }
-    else -> {}
-  }
 }
 
 @Composable
-fun CustomAudienceInput(audiences: String, onAudiencesChanges: (String) -> Unit) {
-  val uriHandler = LocalUriHandler.current
-  val context = LocalContext.current
+fun CustomAudienceInput(
+    audiences: String,
+    onAudiencesChanges: (String) -> Unit,
+) {
+    val uriHandler = LocalUriHandler.current
+    val context = LocalContext.current
 
-  OutlinedTextField(
-      value = audiences,
-      onValueChange = onAudiencesChanges,
-      label = { Text("Custom audiences") },
-      supportingText = { Text("Optional values separated by space") },
-      trailingIcon = {
-        IconButton(
-            onClick = {
-              try {
-                uriHandler.openUri(
-                    "https://docs.strivacity.com/docs/oauth2-oidc-properties-setup#allowed-custom-audiences")
-              } catch (ex: IllegalArgumentException) {
-                Log.e("LOGIN", "Could not open documentation U", ex)
-                Toast.makeText(context, "Could not open documentation", Toast.LENGTH_SHORT).show()
-              }
+    OutlinedTextField(
+        value = audiences,
+        onValueChange = onAudiencesChanges,
+        label = { Text("Custom audiences") },
+        supportingText = { Text("Optional values separated by space") },
+        trailingIcon = {
+            IconButton(onClick = {
+                try {
+                    uriHandler.openUri(
+                        "https://docs.strivacity.com/docs/oauth2-oidc-properties-setup#allowed-custom-audiences",
+                    )
+                } catch (ex: IllegalArgumentException) {
+                    Log.e("LOGIN", "Could not open documentation U", ex)
+                    Toast
+                        .makeText(
+                            context,
+                            "Could not open documentation",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                }
             }) {
-              Icon(
-                  imageVector = Icons.Outlined.Info,
-                  contentDescription = "Documentation about Strivacity Custom Audiences")
+                Icon(
+                    imageVector = Icons.Outlined.Info,
+                    contentDescription = "Documentation about Strivacity Custom Audiences",
+                )
             }
-      })
+        },
+    )
 }

@@ -1,0 +1,3 @@
+[*.kt]
+# Jetpack Compose prefers uppercase for Composable functions
+ktlint_standard_function-naming = disabled

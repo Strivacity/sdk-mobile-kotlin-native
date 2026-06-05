@@ -1,8 +1,6 @@
 package com.strivacity.android.native_sdk
 
 import com.strivacity.android.native_sdk.service.TokenResponse
-import java.time.Instant
-import java.util.Base64
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.KSerializer
@@ -29,6 +27,8 @@ import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.long
 import kotlinx.serialization.json.longOrNull
+import java.time.Instant
+import java.util.Base64
 
 internal typealias JSON = Map<String, Any?>
 
@@ -38,128 +38,132 @@ class Session(
     private val storage: Storage,
     private val logging: Logging,
 ) {
-  private val _loginInProgress = MutableStateFlow(false)
-  val loginInProgress: StateFlow<Boolean> = _loginInProgress
+    private val _loginInProgress = MutableStateFlow(false)
+    val loginInProgress: StateFlow<Boolean> = _loginInProgress
 
-  private val _profile = MutableStateFlow<Profile?>(null)
-  val profile: StateFlow<Profile?> = _profile
+    private val _profile = MutableStateFlow<Profile?>(null)
+    val profile: StateFlow<Profile?> = _profile
 
-  fun setLoginInProgress(value: Boolean) {
-    _loginInProgress.value = value
-  }
-
-  internal fun update(tokenResponse: TokenResponse) {
-    _loginInProgress.value = false
-    _profile.value = Profile(tokenResponse)
-
-    try {
-      storage.set(PROFILE, Json.encodeToString(_profile.value))
-      logging.debug("Session: Profile saved to storage successfully")
-    } catch (e: Exception) {
-      logging.error("Session: Failed to save profile to storage ${e.message}", e)
-      throw e
+    fun setLoginInProgress(value: Boolean) {
+        _loginInProgress.value = value
     }
-  }
 
-  internal fun load() {
-    logging.debug("Session: Loading profile from storage")
-    try {
-      val profileContent = storage.get(PROFILE)
+    internal fun update(tokenResponse: TokenResponse) {
+        _loginInProgress.value = false
+        _profile.value = Profile(tokenResponse)
 
-      if (profileContent != null) {
-        _profile.value = Json.decodeFromString(profileContent)
-        logging.debug("Session: Profile loaded successfully from storage")
-      } else {
-        logging.debug("Session: No profile found in storage")
-      }
-    } catch (e: Exception) {
-      logging.warn("Session: Failed to load profile from storage", e)
+        try {
+            storage.set(PROFILE, Json.encodeToString(_profile.value))
+            logging.debug("Session: Profile saved to storage successfully")
+        } catch (e: Exception) {
+            logging.error("Session: Failed to save profile to storage ${e.message}", e)
+            throw e
+        }
     }
-  }
 
-  internal fun clear() {
-    logging.debug("Session: Clearing session data")
-    _loginInProgress.value = false
-    _profile.value = null
+    internal fun load() {
+        logging.debug("Session: Loading profile from storage")
+        try {
+            val profileContent = storage.get(PROFILE)
 
-    storage.delete(PROFILE)
-    logging.debug("Session: Session cleared successfully")
-  }
+            if (profileContent != null) {
+                _profile.value = Json.decodeFromString(profileContent)
+                logging.debug("Session: Profile loaded successfully from storage")
+            } else {
+                logging.debug("Session: No profile found in storage")
+            }
+        } catch (e: Exception) {
+            logging.warn("Session: Failed to load profile from storage", e)
+        }
+    }
+
+    internal fun clear() {
+        logging.debug("Session: Clearing session data")
+        _loginInProgress.value = false
+        _profile.value = null
+
+        storage.delete(PROFILE)
+        logging.debug("Session: Session cleared successfully")
+    }
 }
 
 @Serializable
 class Profile
-internal constructor(
-    internal val tokenResponse: TokenResponse,
-    @Serializable(with = EpochMillisInstantSerializer::class)
-    internal val accessTokenExpiresAt: Instant,
-    @Transient val claims: JSON = extractClaims(tokenResponse),
-) {
-  internal constructor(
-      tokenResponse: TokenResponse
-  ) : this(tokenResponse, Instant.now().plusSeconds(tokenResponse.expiresIn.toLong()))
+    internal constructor(
+        internal val tokenResponse: TokenResponse,
+        @Serializable(with = EpochMillisInstantSerializer::class)
+        internal val accessTokenExpiresAt: Instant,
+        @Transient val claims: JSON = extractClaims(tokenResponse),
+    ) {
+        internal constructor(
+            tokenResponse: TokenResponse,
+        ) : this(tokenResponse, Instant.now().plusSeconds(tokenResponse.expiresIn.toLong()))
 
-  val idToken: String
-    get() {
-      return tokenResponse.idToken
+        val idToken: String
+            get() {
+                return tokenResponse.idToken
+            }
     }
-}
 
 internal fun extractClaims(tokenResponse: TokenResponse): Map<String, Any?> {
-  val idToken = tokenResponse.idToken
-  val parts = idToken.split(".")
+    val idToken = tokenResponse.idToken
+    val parts = idToken.split(".")
 
-  return Json.decodeFromString(
-      MapStringAnySerializer,
-      String(Base64.getUrlDecoder().decode(parts[1])),
-  )
+    return Json.decodeFromString(
+        MapStringAnySerializer,
+        String(Base64.getUrlDecoder().decode(parts[1])),
+    )
 }
 
 object MapStringAnySerializer : KSerializer<JSON> {
-  override val descriptor: SerialDescriptor =
-      MapSerializer(String.serializer(), JsonElement.serializer()).descriptor
+    override val descriptor: SerialDescriptor =
+        MapSerializer(String.serializer(), JsonElement.serializer()).descriptor
 
-  override fun deserialize(decoder: Decoder): JSON {
-    val input = decoder as? JsonDecoder ?: error("JsonDecoder expected")
-    val jsonObject = input.decodeJsonElement().jsonObject
+    override fun deserialize(decoder: Decoder): JSON {
+        val input = decoder as? JsonDecoder ?: error("JsonDecoder expected")
+        val jsonObject = input.decodeJsonElement().jsonObject
 
-    @Suppress("UNCHECKED_CAST")
-    return jsonElementToAny(jsonObject) as JSON
-  }
-
-  private fun jsonElementToAny(value: JsonElement): Any? {
-    return when {
-      value is JsonPrimitive && value.isString -> value.content
-      value is JsonPrimitive && value.booleanOrNull != null -> value.boolean
-      value is JsonPrimitive && value.longOrNull != null -> value.long
-      value is JsonPrimitive && value.doubleOrNull != null -> value.double
-      value is JsonObject -> value.mapValues { jsonElementToAny(it.value) }
-      value is JsonArray -> value.map { jsonElementToAny(it) }
-      else -> null
+        @Suppress("UNCHECKED_CAST")
+        return jsonElementToAny(jsonObject) as JSON
     }
-  }
 
-  override fun serialize(encoder: Encoder, value: Map<String, Any?>) {
-    val jsonEncoder = encoder as? JsonEncoder ?: error("JsonEncoder expected")
-    val jsonMap = buildJsonObject {
-      value.forEach { (k, v) -> put(k, Json.encodeToJsonElement(v)) }
+    private fun jsonElementToAny(value: JsonElement): Any? =
+        when {
+            value is JsonPrimitive && value.isString -> value.content
+            value is JsonPrimitive && value.booleanOrNull != null -> value.boolean
+            value is JsonPrimitive && value.longOrNull != null -> value.long
+            value is JsonPrimitive && value.doubleOrNull != null -> value.double
+            value is JsonObject -> value.mapValues { jsonElementToAny(it.value) }
+            value is JsonArray -> value.map { jsonElementToAny(it) }
+            else -> null
+        }
+
+    override fun serialize(
+        encoder: Encoder,
+        value: Map<String, Any?>,
+    ) {
+        val jsonEncoder = encoder as? JsonEncoder ?: error("JsonEncoder expected")
+        val jsonMap =
+            buildJsonObject {
+                value.forEach { (k, v) -> put(k, Json.encodeToJsonElement(v)) }
+            }
+        jsonEncoder.encodeJsonElement(jsonMap)
     }
-    jsonEncoder.encodeJsonElement(jsonMap)
-  }
 }
 
 private object EpochMillisInstantSerializer : KSerializer<Instant> {
-  override val descriptor =
-      kotlinx.serialization.descriptors.PrimitiveSerialDescriptor(
-          "java.time.Instant.epochmillis",
-          kotlinx.serialization.descriptors.PrimitiveKind.LONG,
-      )
+    override val descriptor =
+        kotlinx.serialization.descriptors.PrimitiveSerialDescriptor(
+            "java.time.Instant.epochmillis",
+            kotlinx.serialization.descriptors.PrimitiveKind.LONG,
+        )
 
-  override fun serialize(encoder: Encoder, value: Instant) {
-    encoder.encodeLong(value.toEpochMilli())
-  }
+    override fun serialize(
+        encoder: Encoder,
+        value: Instant,
+    ) {
+        encoder.encodeLong(value.toEpochMilli())
+    }
 
-  override fun deserialize(decoder: Decoder): Instant {
-    return Instant.ofEpochMilli(decoder.decodeLong())
-  }
+    override fun deserialize(decoder: Decoder): Instant = Instant.ofEpochMilli(decoder.decodeLong())
 }

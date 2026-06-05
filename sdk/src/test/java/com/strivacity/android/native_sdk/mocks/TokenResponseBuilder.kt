@@ -1,20 +1,19 @@
 import com.strivacity.android.native_sdk.service.TokenResponse
+import kotlinx.serialization.json.Json
 import java.time.Instant
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.toJavaDuration
-import kotlinx.serialization.json.Json
 
 internal class TokenResponseBuilder(
     var nonce: String = "YigFv8tTlOJRsSGGSURZiw",
     var iss: String = "https://localhost/",
     var aud: String = "[\"test_client\"]",
 ) {
-  fun createAsTokenResponse(now: Instant = Instant.now()): TokenResponse =
-      decode(buildAsString(now))
+    fun createAsTokenResponse(now: Instant = Instant.now()): TokenResponse = decode(buildAsString(now))
 
-  fun buildAsString(now: Instant = Instant.now()): String =
-      """
+    fun buildAsString(now: Instant = Instant.now()): String =
+        """
 {
     "access_token": "test_access_token",
     "id_token": "${fakeIdTokenJwt(now)}",
@@ -23,10 +22,10 @@ internal class TokenResponseBuilder(
 }
 """
 
-  fun decode(encoded: String): TokenResponse = Json.decodeFromString(encoded)
+    fun decode(encoded: String): TokenResponse = Json.decodeFromString(encoded)
 
-  private fun fakeIdToken(now: Instant): String {
-    return """
+    private fun fakeIdToken(now: Instant): String =
+        """
 {
   "at_hash": "access_token_hash",
   "aud": $aud,
@@ -44,13 +43,12 @@ internal class TokenResponseBuilder(
   "user_id": "aaaaaaaa-b8cd-4edc-8e8e-c0c0d5ec3aaa"
 }
 """
-  }
 
-  private fun fakeIdTokenJwt(now: Instant): String {
-    val header =
-        "eyJhbGciOiJSUzI1NiIsImtpZCI6InByaXZhdGU6cGhhREJMWDhhalQ5clNQYkdwRk1fT0FjYjhrQlpDVlVleWtKSjlwVWFoOCIsInR5cCI6IkpXVCJ9"
-    val payload = encodeJwtPart(fakeIdToken(now))
-    val signature = "fake_sig"
-    return "$header.$payload.$signature"
-  }
+    private fun fakeIdTokenJwt(now: Instant): String {
+        val header =
+            "eyJhbGciOiJSUzI1NiIsImtpZCI6InByaXZhdGU6cGhhREJMWDhhalQ5clNQYkdwRk1fT0FjYjhrQlpDVlVleWtKSjlwVWFoOCIsInR5cCI6IkpXVCJ9"
+        val payload = encodeJwtPart(fakeIdToken(now))
+        val signature = "fake_sig"
+        return "$header.$payload.$signature"
+    }
 }

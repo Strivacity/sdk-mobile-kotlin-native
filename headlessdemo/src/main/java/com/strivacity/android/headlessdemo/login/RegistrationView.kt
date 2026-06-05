@@ -45,33 +45,42 @@ import com.strivacity.android.native_sdk.render.models.SubmitWidget
 import kotlinx.coroutines.launch
 
 @Composable
-fun RegistrationView(screen: Screen, headlessAdapter: HeadlessAdapter) {
-  val messages by headlessAdapter.messages().collectAsState()
+fun RegistrationView(
+    screen: Screen,
+    headlessAdapter: HeadlessAdapter,
+) {
+    val messages by headlessAdapter.messages().collectAsState()
 
-  val coroutineScope = rememberCoroutineScope()
+    val coroutineScope = rememberCoroutineScope()
 
-  val focusManager = LocalFocusManager.current
-  val emailFocusRequester = remember { FocusRequester() }
-  val passwordFocusRequester = remember { FocusRequester() }
-  val passwordConfirmationFocusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+    val emailFocusRequester = remember { FocusRequester() }
+    val passwordFocusRequester = remember { FocusRequester() }
+    val passwordConfirmationFocusRequester = remember { FocusRequester() }
 
-  var email by remember {
-    mutableStateOf(
-        (screen.forms?.find { it.id == "registration" }?.widgets?.find { it.id == "email" }
-                as InputWidget?)
-            ?.value ?: "")
-  }
+    var email by remember {
+        mutableStateOf(
+            (
+                screen.forms
+                    ?.find { it.id == "registration" }
+                    ?.widgets
+                    ?.find { it.id == "email" }
+                    as InputWidget?
+            )?.value ?: "",
+        )
+    }
 
-  var password by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
 
-  var passwordConfirmation by remember { mutableStateOf("") }
+    var passwordConfirmation by remember { mutableStateOf("") }
 
-  var keepMeLoggedIn by remember { mutableStateOf(false) }
+    var keepMeLoggedIn by remember { mutableStateOf(false) }
 
-  Column(
-      horizontalAlignment = Alignment.CenterHorizontally,
-      verticalArrangement = Arrangement.spacedBy(10.dp),
-      modifier = Modifier.fillMaxWidth().padding(35.dp)) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.fillMaxWidth().padding(35.dp),
+    ) {
         Text("Sign up", fontSize = 24.sp, fontWeight = FontWeight.W600)
 
         TextField(
@@ -80,16 +89,17 @@ fun RegistrationView(screen: Screen, headlessAdapter: HeadlessAdapter) {
             label = { Text("Email") },
             modifier =
                 Modifier.fillMaxWidth().focusRequester(emailFocusRequester).onPreviewKeyEvent {
-                  if (it.key == Key.Tab && it.type == KeyEventType.KeyDown) {
-                    passwordFocusRequester.requestFocus()
-                    true
-                  } else {
-                    false
-                  }
-                })
+                    if (it.key == Key.Tab && it.type == KeyEventType.KeyDown) {
+                        passwordFocusRequester.requestFocus()
+                        true
+                    } else {
+                        false
+                    }
+                },
+        )
         val emailErrorMessage = messages?.errorMessageForWidget("registration", "email")
         if (emailErrorMessage != null) {
-          Text(emailErrorMessage, color = Color.Red, modifier = Modifier.fillMaxWidth())
+            Text(emailErrorMessage, color = Color.Red, modifier = Modifier.fillMaxWidth())
         }
 
         TextField(
@@ -100,16 +110,17 @@ fun RegistrationView(screen: Screen, headlessAdapter: HeadlessAdapter) {
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             modifier =
                 Modifier.fillMaxWidth().focusRequester(passwordFocusRequester).onPreviewKeyEvent {
-                  if (it.key == Key.Tab && it.type == KeyEventType.KeyDown) {
-                    passwordConfirmationFocusRequester.requestFocus()
-                    true
-                  } else {
-                    false
-                  }
-                })
+                    if (it.key == Key.Tab && it.type == KeyEventType.KeyDown) {
+                        passwordConfirmationFocusRequester.requestFocus()
+                        true
+                    } else {
+                        false
+                    }
+                },
+        )
         val passwordErrorMessage = messages?.errorMessageForWidget("registration", "password")
         if (passwordErrorMessage != null) {
-          Text(passwordErrorMessage, color = Color.Red, modifier = Modifier.fillMaxWidth())
+            Text(passwordErrorMessage, color = Color.Red, modifier = Modifier.fillMaxWidth())
         }
 
         TextField(
@@ -119,74 +130,85 @@ fun RegistrationView(screen: Screen, headlessAdapter: HeadlessAdapter) {
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             modifier =
-                Modifier.fillMaxWidth()
+                Modifier
+                    .fillMaxWidth()
                     .focusRequester(passwordConfirmationFocusRequester)
                     .onPreviewKeyEvent {
-                      if (it.key == Key.Tab && it.type == KeyEventType.KeyDown) {
-                        focusManager.moveFocus(FocusDirection.Down)
-                        true
-                      } else {
-                        false
-                      }
-                    })
+                        if (it.key == Key.Tab && it.type == KeyEventType.KeyDown) {
+                            focusManager.moveFocus(FocusDirection.Down)
+                            true
+                        } else {
+                            false
+                        }
+                    },
+        )
         val passwordConfirmationErrorMessage =
             messages?.errorMessageForWidget("registration", "passwordConfirmation")
         if (passwordConfirmationErrorMessage != null) {
-          Text(
-              passwordConfirmationErrorMessage,
-              color = Color.Red,
-              modifier = Modifier.fillMaxWidth())
+            Text(
+                passwordConfirmationErrorMessage,
+                color = Color.Red,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Start,
-            verticalAlignment = Alignment.CenterVertically) {
-              Checkbox(keepMeLoggedIn, { keepMeLoggedIn = it })
-              Text("Keep me logged in")
-            }
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Checkbox(keepMeLoggedIn, { keepMeLoggedIn = it })
+            Text("Keep me logged in")
+        }
 
         Button(
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = StrivacityPrimary),
             onClick = {
-              coroutineScope.launch {
-                headlessAdapter.submit(
-                    "registration",
-                    mapOf(
-                        "email" to email,
-                        "password" to password,
-                        "passwordConfirmation" to passwordConfirmation,
-                        "keepMeLoggedIn" to keepMeLoggedIn))
-              }
-            }) {
-              Text("Continue")
-            }
+                coroutineScope.launch {
+                    headlessAdapter.submit(
+                        "registration",
+                        mapOf(
+                            "email" to email,
+                            "password" to password,
+                            "passwordConfirmation" to passwordConfirmation,
+                            "keepMeLoggedIn" to keepMeLoggedIn,
+                        ),
+                    )
+                }
+            },
+        ) {
+            Text("Continue")
+        }
 
         Text("OR")
 
         val externalLogins = screen.forms?.filter { it.id.startsWith("externalLoginProvider") }
         externalLogins?.forEach {
-          it.let {
-            Button(
-                modifier = Modifier.fillMaxWidth(),
-                colors =
-                    ButtonDefaults.buttonColors(
-                        containerColor = StrivacitySecondary, contentColor = Color.Black),
-                onClick = { coroutineScope.launch { headlessAdapter.submit(it.id, mapOf()) } }) {
-                  Text((it.widgets[0] as SubmitWidget).label)
+            it.let {
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors =
+                        ButtonDefaults.buttonColors(
+                            containerColor = StrivacitySecondary,
+                            contentColor = Color.Black,
+                        ),
+                    onClick = { coroutineScope.launch { headlessAdapter.submit(it.id, mapOf()) } },
+                ) {
+                    Text((it.widgets[0] as SubmitWidget).label)
                 }
-          }
+            }
         }
 
         TextButton(
-            onClick = { coroutineScope.launch { headlessAdapter.submit("reset", mapOf()) } }) {
-              Text("Back to login")
-            }
-      }
+            onClick = { coroutineScope.launch { headlessAdapter.submit("reset", mapOf()) } },
+        ) {
+            Text("Back to login")
+        }
+    }
 
-  // uncomment this to focus on email field when registration loads
-  //    LaunchedEffect(Unit) {
-  //        emailFocusRequester.requestFocus()
-  //    }
+    // uncomment this to focus on email field when registration loads
+    //    LaunchedEffect(Unit) {
+    //        emailFocusRequester.requestFocus()
+    //    }
 }

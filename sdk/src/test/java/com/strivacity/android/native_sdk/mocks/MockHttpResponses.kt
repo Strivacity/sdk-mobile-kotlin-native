@@ -14,52 +14,63 @@ import io.ktor.http.set
 
 fun MockRequestHandleScope.respondFlowRedirect(request: HttpRequestData): HttpResponseData? =
     with(request.url.encodedPath) {
-      when {
-        startsWith("/oauth2/auth") ->
-            respond(
-                "test-scheme://my-test-app/redirUrl?session_id=test-session-id&language=en-GB",
-                HttpStatusCode.OK,
-            )
+        when {
+            startsWith("/oauth2/auth") -> {
+                respond(
+                    "test-scheme://my-test-app/redirUrl?session_id=test-session-id&language=en-GB",
+                    HttpStatusCode.OK,
+                )
+            }
 
-        else -> null
-      }
+            else -> {
+                null
+            }
+        }
     }
 
 fun MockRequestHandleScope.respondFlowRedirectWithoutLanguage(request: HttpRequestData): HttpResponseData? =
     with(request.url.encodedPath) {
-      when {
-        startsWith("/oauth2/auth") ->
-            respond(
-                "test-scheme://my-test-app/redirUrl?session_id=test-session-id",
-                HttpStatusCode.OK,
-            )
+        when {
+            startsWith("/oauth2/auth") -> {
+                respond(
+                    "test-scheme://my-test-app/redirUrl?session_id=test-session-id",
+                    HttpStatusCode.OK,
+                )
+            }
 
-        else -> null
-      }
+            else -> {
+                null
+            }
+        }
     }
 
 fun MockRequestHandleScope.respondFlowOAuthError(request: HttpRequestData): HttpResponseData? =
     with(request.url.encodedPath) {
-      when {
-        startsWith("/oauth2/auth") ->
-            respond(
-                "",
-                HttpStatusCode.Found,
-                headers {
-                  set(
-                      HttpHeaders.Location,
-                      "https://localhost/oauth2/error?error=test-error&error_description=SomeTestErrorDescription",
-                  )
-                },
-            )
-        startsWith("/oauth2/error") ->
-            respond(
-                "",
-                HttpStatusCode.OK,
-            )
+        when {
+            startsWith("/oauth2/auth") -> {
+                respond(
+                    "",
+                    HttpStatusCode.Found,
+                    headers {
+                        set(
+                            HttpHeaders.Location,
+                            "https://localhost/oauth2/error?error=test-error&error_description=SomeTestErrorDescription",
+                        )
+                    },
+                )
+            }
 
-        else -> null
-      }
+            startsWith("/oauth2/error") -> {
+                respond(
+                    "",
+                    HttpStatusCode.OK,
+                )
+            }
+
+            else -> {
+                null
+            }
+        }
     }
 
 fun MockRequestHandleScope.respondPostLoginRedirect(
@@ -68,25 +79,27 @@ fun MockRequestHandleScope.respondPostLoginRedirect(
     request: HttpRequestData,
 ): HttpResponseData? =
     with(request.url.encodedPath) {
-      when {
-        startsWith("/provider/oauth2/v1/finish") -> {
-          val redirectUrl =
-              URLBuilder("test-scheme://my-test-app/redirUrl")
-                  .apply {
-                    set {
-                      withCode?.let { parameters["code"] = it }
-                      withState?.let { parameters["state"] = it }
-                    }
-                  }
-                  .build()
-                  .toString()
-          respond(
-            redirectUrl,
-              HttpStatusCode.OK,
-          )
+        when {
+            startsWith("/provider/oauth2/v1/finish") -> {
+                val redirectUrl =
+                    URLBuilder("test-scheme://my-test-app/redirUrl")
+                        .apply {
+                            set {
+                                withCode?.let { parameters["code"] = it }
+                                withState?.let { parameters["state"] = it }
+                            }
+                        }.build()
+                        .toString()
+                respond(
+                    redirectUrl,
+                    HttpStatusCode.OK,
+                )
+            }
+
+            else -> {
+                null
+            }
         }
-        else -> null
-      }
     }
 
 internal fun MockRequestHandleScope.respondTokenExchange200(
@@ -94,18 +107,21 @@ internal fun MockRequestHandleScope.respondTokenExchange200(
     request: HttpRequestData,
 ): HttpResponseData? =
     with(request.url.encodedPath) {
-      when {
-        startsWith("/oauth2/token") -> {
-          val tokenResp = TokenResponseBuilder()
-          tokenResp.tokenResponseBuilder()
-          respond(
-              tokenResp.buildAsString(),
-              HttpStatusCode.OK,
-              headers { set(HttpHeaders.ContentType, "application/json") },
-          )
+        when {
+            startsWith("/oauth2/token") -> {
+                val tokenResp = TokenResponseBuilder()
+                tokenResp.tokenResponseBuilder()
+                respond(
+                    tokenResp.buildAsString(),
+                    HttpStatusCode.OK,
+                    headers { set(HttpHeaders.ContentType, "application/json") },
+                )
+            }
+
+            else -> {
+                null
+            }
         }
-        else -> null
-      }
     }
 
 fun MockRequestHandleScope.respondTokenExchange500(
@@ -113,12 +129,15 @@ fun MockRequestHandleScope.respondTokenExchange500(
     request: HttpRequestData,
 ): HttpResponseData? =
     with(request.url.encodedPath) {
-      when {
-        startsWith("/oauth2/token") -> {
-          respond("", HttpStatusCode.InternalServerError)
+        when {
+            startsWith("/oauth2/token") -> {
+                respond("", HttpStatusCode.InternalServerError)
+            }
+
+            else -> {
+                null
+            }
         }
-        else -> null
-      }
     }
 
 fun MockRequestHandleScope.respondTokenExchangeException(
@@ -126,77 +145,94 @@ fun MockRequestHandleScope.respondTokenExchangeException(
     request: HttpRequestData,
 ): HttpResponseData? =
     with(request.url.encodedPath) {
-      when {
-        startsWith("/oauth2/token") -> {
-          throw Exception("Test exception")
+        when {
+            startsWith("/oauth2/token") -> {
+                throw Exception("Test exception")
+            }
+
+            else -> {
+                null
+            }
         }
-        else -> null
-      }
     }
 
-fun MockRequestHandleScope.respondInit200(
-    request: HttpRequestData,
-): HttpResponseData? =
+fun MockRequestHandleScope.respondInit200(request: HttpRequestData): HttpResponseData? =
     with(request.url.encodedPath) {
-      when {
-        startsWith("/flow/api/v1/init") -> {
-          respond(
-              fakeInitResponsePayload,
-              HttpStatusCode.OK,
-              headers { set(HttpHeaders.ContentType, ContentType.Application.Json.toString()) },
-          )
+        when {
+            startsWith("/flow/api/v1/init") -> {
+                respond(
+                    FAKE_INIT_RESPONSE_PAYLOAD,
+                    HttpStatusCode.OK,
+                    headers {
+                        set(
+                            HttpHeaders.ContentType,
+                            ContentType.Application.Json.toString(),
+                        )
+                    },
+                )
+            }
+
+            else -> {
+                null
+            }
         }
-        else -> null
-      }
     }
 
-fun MockRequestHandleScope.respondEntryWithRedirectBody(
-    request: HttpRequestData,
-): HttpResponseData? =
+fun MockRequestHandleScope.respondEntryWithRedirectBody(request: HttpRequestData): HttpResponseData? =
     with(request.url.encodedPath) {
-      when {
-        startsWith("/provider/flow/entry") -> {
-          respond(
-              "android://native-flow?session_id=c45f0b69-9e1e-42db-8419-125ad8885d9a&language=en-GB",
-              HttpStatusCode.OK,
-          )
+        when {
+            startsWith("/provider/flow/entry") -> {
+                respond(
+                    "android://native-flow?session_id=c45f0b69-9e1e-42db-8419-125ad8885d9a&language=en-GB",
+                    HttpStatusCode.OK,
+                )
+            }
+
+            else -> {
+                null
+            }
         }
-        else -> null
-      }
     }
 
-fun MockRequestHandleScope.respondEntryWithRedirectBodyWithoutLanguage(
-    request: HttpRequestData,
-): HttpResponseData? =
+fun MockRequestHandleScope.respondEntryWithRedirectBodyWithoutLanguage(request: HttpRequestData): HttpResponseData? =
     with(request.url.encodedPath) {
-      when {
-        startsWith("/provider/flow/entry") -> {
-          respond(
-              "android://native-flow?session_id=c45f0b69-9e1e-42db-8419-125ad8885d9a",
-              HttpStatusCode.OK,
-          )
+        when {
+            startsWith("/provider/flow/entry") -> {
+                respond(
+                    "android://native-flow?session_id=c45f0b69-9e1e-42db-8419-125ad8885d9a",
+                    HttpStatusCode.OK,
+                )
+            }
+
+            else -> {
+                null
+            }
         }
-        else -> null
-      }
     }
 
-fun MockRequestHandleScope.respondEntry400(
-    request: HttpRequestData,
-): HttpResponseData? =
+fun MockRequestHandleScope.respondEntry400(request: HttpRequestData): HttpResponseData? =
     with(request.url.encodedPath) {
-      when {
-        startsWith("/provider/flow/entry") -> {
-          respond(
-              fakeEntryMagicLinkExpiredResponsePayload,
-              HttpStatusCode.BadRequest,
-              headers { set(HttpHeaders.ContentType, ContentType.Application.Json.toString()) },
-          )
+        when {
+            startsWith("/provider/flow/entry") -> {
+                respond(
+                    FAKE_ENTRY_MAGIC_LINK_EXPIRED_RESPONSE_PAYLOAD,
+                    HttpStatusCode.BadRequest,
+                    headers {
+                        set(
+                            HttpHeaders.ContentType,
+                            ContentType.Application.Json.toString(),
+                        )
+                    },
+                )
+            }
+
+            else -> {
+                null
+            }
         }
-        else -> null
-      }
     }
 
-const val fakeInitResponsePayload =
+const val FAKE_INIT_RESPONSE_PAYLOAD =
     """
 {
   "screen": "identification",
@@ -253,7 +289,8 @@ const val fakeInitResponsePayload =
 }
 """
 
-const val fakeEntryMagicLinkExpiredResponsePayload =
+// const val fakeEntryMagicLinkExpiredResponsePayload =
+const val FAKE_ENTRY_MAGIC_LINK_EXPIRED_RESPONSE_PAYLOAD =
     """
 {
   "error": "magicLinkExpired",

@@ -38,7 +38,6 @@ interface CredentialManagerProvider {
 class DefaultCredentialManagerProvider(
     private val context: WeakReference<Context>,
 ) : CredentialManagerProvider {
-
     override fun activityContext(): Activity? = context.get() as? Activity
 
     override suspend fun createCredential(
@@ -53,4 +52,3 @@ class DefaultCredentialManagerProvider(
         request: GetCredentialRequest,
     ): GetCredentialResponse = CredentialManager.create(context).getCredential(context, request)
 }
-

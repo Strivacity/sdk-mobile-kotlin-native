@@ -7,10 +7,19 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 @SerialName("widget")
-data class WidgetLayout(val formId: String, val widgetId: String) : Layout()
+data class WidgetLayout(
+    val formId: String,
+    val widgetId: String,
+) : Layout()
 
 @Serializable
 @SerialName("horizontal")
-data class HorizontalLayout(val items: List<Layout>) : Layout()
+data class HorizontalLayout(
+    val items: List<Layout>,
+) : Layout()
 
-@Serializable @SerialName("vertical") data class VerticalLayout(val items: List<Layout>) : Layout()
+@Serializable
+@SerialName("vertical")
+data class VerticalLayout(
+    val items: List<Layout>,
+) : Layout()

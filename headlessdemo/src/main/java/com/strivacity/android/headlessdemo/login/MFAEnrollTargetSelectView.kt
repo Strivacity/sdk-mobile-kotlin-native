@@ -34,75 +34,89 @@ import com.strivacity.android.native_sdk.render.models.SubmitWidget
 import kotlinx.coroutines.launch
 
 @Composable
-fun MFAEnrollTargetSelectView(screen: Screen, headlessAdapter: HeadlessAdapter) {
-  val messages by headlessAdapter.messages().collectAsState()
+fun MFAEnrollTargetSelectView(
+    screen: Screen,
+    headlessAdapter: HeadlessAdapter,
+) {
+    val messages by headlessAdapter.messages().collectAsState()
 
-  val coroutineScope = rememberCoroutineScope()
+    val coroutineScope = rememberCoroutineScope()
 
-  val mfaEnrollTargetSelectFormWidgets =
-      screen.forms?.find { it.id == "mfaEnrollTargetSelect" }?.widgets
-  val targetWidget = mfaEnrollTargetSelectFormWidgets?.find { it.id == "target" }
-  var targetInitialValue = ""
-  if (targetWidget is SelectWidget) {
-    targetInitialValue = targetWidget.value ?: ""
-  }
+    val mfaEnrollTargetSelectFormWidgets =
+        screen.forms?.find { it.id == "mfaEnrollTargetSelect" }?.widgets
+    val targetWidget = mfaEnrollTargetSelectFormWidgets?.find { it.id == "target" }
+    var targetInitialValue = ""
+    if (targetWidget is SelectWidget) {
+        targetInitialValue = targetWidget.value ?: ""
+    }
 
-  var target by remember { mutableStateOf(targetInitialValue) }
+    var target by remember { mutableStateOf(targetInitialValue) }
 
-  Column(
-      horizontalAlignment = Alignment.CenterHorizontally,
-      verticalArrangement = Arrangement.spacedBy(10.dp),
-      modifier = Modifier.fillMaxWidth().padding(35.dp)) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.fillMaxWidth().padding(35.dp),
+    ) {
         Text(
             (mfaEnrollTargetSelectFormWidgets?.find { it.id == "section-title" } as StaticWidget?)
                 ?.value ?: "Verify your authenticator",
             fontSize = 24.sp,
-            fontWeight = FontWeight.W600)
+            fontWeight = FontWeight.W600,
+        )
 
         TextField(
             value = target,
             onValueChange = { target = it },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-            modifier = Modifier.fillMaxWidth())
+            modifier = Modifier.fillMaxWidth(),
+        )
         val targetErrorMessage = messages?.errorMessageForWidget("mfaEnrollTargetSelect", "target")
         if (targetErrorMessage != null) {
-          Text(targetErrorMessage, color = Color.Red, modifier = Modifier.fillMaxWidth())
+            Text(targetErrorMessage, color = Color.Red, modifier = Modifier.fillMaxWidth())
         }
 
         Button(
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = StrivacityPrimary),
             onClick = {
-              coroutineScope.launch {
-                headlessAdapter.submit(
-                    "mfaEnrollTargetSelect", mapOf("target" to target, "method" to "passcode"))
-              }
-            }) {
-              Text("Verify")
-            }
+                coroutineScope.launch {
+                    headlessAdapter.submit(
+                        "mfaEnrollTargetSelect",
+                        mapOf("target" to target, "method" to "passcode"),
+                    )
+                }
+            },
+        ) {
+            Text("Verify")
+        }
 
-        (screen.forms
+        (
+            screen.forms
                 ?.find { it.id == "additionalActions/selectDifferentMethod" }
                 ?.widgets
-                ?.find { it.id == "submit" } as SubmitWidget?)
-            ?.let {
-              Button(
-                  modifier = Modifier.fillMaxWidth(),
-                  colors =
-                      ButtonDefaults.buttonColors(
-                          containerColor = StrivacitySecondary, contentColor = Color.Black),
-                  onClick = {
+                ?.find { it.id == "submit" } as SubmitWidget?
+        )?.let {
+            Button(
+                modifier = Modifier.fillMaxWidth(),
+                colors =
+                    ButtonDefaults.buttonColors(
+                        containerColor = StrivacitySecondary,
+                        contentColor = Color.Black,
+                    ),
+                onClick = {
                     coroutineScope.launch {
-                      headlessAdapter.submit("additionalActions/selectDifferentMethod", mapOf())
+                        headlessAdapter.submit("additionalActions/selectDifferentMethod", mapOf())
                     }
-                  }) {
-                    Text(it.label)
-                  }
+                },
+            ) {
+                Text(it.label)
             }
+        }
 
         TextButton(
-            onClick = { coroutineScope.launch { headlessAdapter.submit("reset", mapOf()) } }) {
-              Text("Back to login")
-            }
-      }
+            onClick = { coroutineScope.launch { headlessAdapter.submit("reset", mapOf()) } },
+        ) {
+            Text("Back to login")
+        }
+    }
 }
