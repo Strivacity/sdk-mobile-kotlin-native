@@ -428,8 +428,6 @@ class NativeSDK
 
                 session.clear()
 
-                logging.debug("NativeSDK: waiting 1s before submitting logout request")
-
                 if (idToken == null) {
                     logging.info("NativeSDK: User logged out (no id_token_hint available)")
                     return@withContext
