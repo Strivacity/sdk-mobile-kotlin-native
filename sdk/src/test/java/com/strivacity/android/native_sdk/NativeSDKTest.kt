@@ -22,9 +22,11 @@ import com.strivacity.android.native_sdk.mocks.respondFlowRedirectWithoutLanguag
 import com.strivacity.android.native_sdk.mocks.respondInit200
 import com.strivacity.android.native_sdk.mocks.respondPostLoginRedirect
 import com.strivacity.android.native_sdk.mocks.respondTokenExchange200
+import com.strivacity.android.native_sdk.mocks.respondTokenExchange200WithoutIdToken
 import com.strivacity.android.native_sdk.mocks.respondTokenExchangeException
 import com.strivacity.android.native_sdk.mocks.storeProfile
 import com.strivacity.android.native_sdk.mocks.validAccessToken
+import com.strivacity.android.native_sdk.mocks.validAccessTokenWithoutIdToken
 import com.strivacity.android.native_sdk.render.DefaultCredentialManagerProvider
 import com.strivacity.android.native_sdk.render.FallbackHandler
 import com.strivacity.android.native_sdk.render.LoginController
@@ -415,13 +417,12 @@ internal class NativeSDKTest : NativeSDKTestBase() {
                     OidcParams(
                         onSuccess = {},
                         onError = { err -> error = err },
+                        shouldVerifyIdTokenClaims = true,
                     ),
                     fallbackHandler = {},
                     logging = testLogging,
                     credentialManagerProvider =
-                        DefaultCredentialManagerProvider(
-                            WeakReference(mock<Context>()),
-                        ),
+                        DefaultCredentialManagerProvider(WeakReference(mock<Context>())),
                 )
             sdk.loginController = loginController
 
@@ -543,6 +544,26 @@ internal class NativeSDKLogout : NativeSDKTestBase() {
                 }.build()
         return Pair(sdk, logoutParameters)
     }
+
+    @Test
+    fun shouldClearSession_withoutMakingLogoutRequest_whenIdTokenIsAbsent() =
+        runTest {
+            val sdk =
+                sdkBuilder
+                    .apply { scheduler = testScheduler }
+                    .store { validAccessTokenWithoutIdToken() }
+                    .http { request ->
+                        throw AssertionError(
+                            "No HTTP request should be made when idToken is absent, got: ${request.url}",
+                        )
+                    }.build()
+
+            assertNotNull(sdk.session.profile.value)
+
+            sdk.logout()
+
+            assertNull(sdk.session.profile.value)
+        }
 }
 
 internal class NativeSDKRevoke : NativeSDKTestBase() {
@@ -645,6 +666,34 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
             )
 
             assertEquals("profile openid offline", requestParams["scope"])
+        }
+
+    @Test
+    fun login_withOpenIdScopeNotFirst_shouldStillIncludeNonce() =
+        runTest {
+            lateinit var requestParams: Parameters
+            val sdk =
+                sdkBuilder
+                    .apply { scheduler = testScheduler }
+                    .http(
+                        captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
+                            requestParams = params
+                        },
+                    ).http(MockRequestHandleScope::respondInit200)
+                    .build()
+
+            sdk.login(
+                onSuccess = {},
+                onError = {},
+                fallbackHandler = {},
+                loginParameters = LoginParameters(scopes = listOf("profile", "openid")),
+            )
+
+            assertNotNull(
+                "nonce should be present when openid is in scopes, even if not listed first",
+                requestParams["nonce"],
+            )
+            assertEquals("profile openid", requestParams["scope"])
         }
 
     @Test
@@ -1268,6 +1317,151 @@ internal class NativeSDKLoginTest : NativeSDKTestBase() {
             }
         val screen = json.decodeFromString<Screen>(FAKE_INIT_RESPONSE_PAYLOAD)
         assertNotNull(screen)
+    }
+}
+
+internal class NativeSDKWithoutOpenIdScopeTest : NativeSDKTestBase() {
+    @Test
+    fun login_withoutOpenIdScope_shouldNotIncludeNonceInAuthRequest() =
+        runTest {
+            lateinit var requestParams: Parameters
+
+            val sdk =
+                sdkBuilder
+                    .apply { scheduler = testScheduler }
+                    .http(
+                        captureParams(MockRequestHandleScope::respondFlowRedirect) { params ->
+                            requestParams = params
+                        },
+                    ).http(MockRequestHandleScope::respondInit200)
+                    .build()
+
+            sdk.login(
+                onSuccess = {},
+                onError = {},
+                fallbackHandler = {},
+                loginParameters = LoginParameters(scopes = listOf("email", "profile")),
+            )
+
+            assertNull("nonce should be absent when openid scope is not requested", requestParams["nonce"])
+            assertEquals("email profile", requestParams["scope"])
+            assertEquals("Number of parameters (no nonce)", 8, requestParams.entries().count())
+        }
+
+    @Test
+    fun loginFinalize_withoutOpenIdScope_shouldSucceed_whenIdTokenIsAbsentFromResponse() =
+        runTest {
+            lateinit var sdk: NativeSDK
+            sdk =
+                sdkBuilder
+                    .apply { scheduler = testScheduler }
+                    .http(MockRequestHandleScope::respondFlowRedirect)
+                    .http(MockRequestHandleScope::respondInit200)
+                    .http { request ->
+                        respondPostLoginRedirect(
+                            withState = sdk.loginController!!.oidcParams.state,
+                            withCode = sdk.loginController!!.oidcParams.codeVerifier,
+                            request = request,
+                        )
+                    }.http { request -> respondTokenExchange200WithoutIdToken(request) }
+                    .build()
+
+            var onSuccessCalled = false
+            var onErrorCalled = false
+            sdk.login(
+                onSuccess = { onSuccessCalled = true },
+                onError = { onErrorCalled = true },
+                fallbackHandler = {},
+                loginParameters = LoginParameters(scopes = listOf("email", "profile")),
+            )
+            sdk.continueFlow("https://localhost/provider/oauth2/v1/finish?state=1234")
+
+            assertTrue(onSuccessCalled)
+            assertFalse(onErrorCalled)
+            assertNotNull(testSession.profile.value)
+        }
+
+    @Test
+    fun loginFinalize_withoutOpenIdScope_shouldSkipClaimVerifications() =
+        do_shouldSkipClaimVerification { nonce = "deliberately-mismatched-nonce" }
+
+    @Test
+    fun loginFinalize_withoutOpenIdScope_shouldSkipIssuerVerification() =
+        do_shouldSkipClaimVerification {
+            iss = "https://attacker.example.com/"
+        }
+
+    @Test
+    fun loginFinalize_withoutOpenIdScope_shouldSkipAudienceVerification() =
+        do_shouldSkipClaimVerification {
+            aud = "[]"
+        }
+
+    @Test
+    fun loginFinalize_withoutOpenIdScope_shouldStoreProfileWithNullIdToken() =
+        runTest {
+            lateinit var sdk: NativeSDK
+            sdk =
+                sdkBuilder
+                    .apply { scheduler = testScheduler }
+                    .http(MockRequestHandleScope::respondFlowRedirect)
+                    .http(MockRequestHandleScope::respondInit200)
+                    .http { request ->
+                        respondPostLoginRedirect(
+                            withState = sdk.loginController!!.oidcParams.state,
+                            withCode = sdk.loginController!!.oidcParams.codeVerifier,
+                            request = request,
+                        )
+                    }.http { request -> respondTokenExchange200WithoutIdToken(request) }
+                    .build()
+
+            sdk.login(
+                onSuccess = {},
+                onError = {},
+                fallbackHandler = {},
+                loginParameters = LoginParameters(scopes = listOf("email", "profile")),
+            )
+            sdk.continueFlow("https://localhost/provider/oauth2/v1/finish?state=1234")
+
+            assertNull(testSession.profile.value?.idToken)
+            assertFalse(testSession.profile.value!!.hasIdToken)
+        }
+
+    private fun do_shouldSkipClaimVerification(tokenResponseBuilder: TokenResponseBuilder.() -> Unit) {
+        runTest {
+            lateinit var sdk: NativeSDK
+            sdk =
+                sdkBuilder
+                    .apply { scheduler = testScheduler }
+                    .http(MockRequestHandleScope::respondFlowRedirect)
+                    .http(MockRequestHandleScope::respondInit200)
+                    .http { request ->
+                        respondPostLoginRedirect(
+                            withState = sdk.loginController!!.oidcParams.state,
+                            withCode = sdk.loginController!!.oidcParams.codeVerifier,
+                            request = request,
+                        )
+                    }.http { request ->
+                        respondTokenExchange200(
+                            tokenResponseBuilder,
+                            request,
+                        )
+                    }.build()
+
+            var onSuccessCalled = false
+            var onErrorCalled = false
+            sdk.login(
+                onSuccess = { onSuccessCalled = true },
+                onError = { onErrorCalled = true },
+                fallbackHandler = {},
+                loginParameters = LoginParameters(scopes = listOf("email", "profile")),
+            )
+            sdk.continueFlow("https://localhost/provider/oauth2/v1/finish?state=1234")
+
+            assertTrue(onSuccessCalled)
+            assertFalse(onErrorCalled)
+            assertNotNull(testSession.profile.value)
+        }
     }
 }
 

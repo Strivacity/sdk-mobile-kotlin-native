@@ -99,14 +99,19 @@ class Profile
             tokenResponse: TokenResponse,
         ) : this(tokenResponse, Instant.now().plusSeconds(tokenResponse.expiresIn.toLong()))
 
-        val idToken: String
+        val idToken: String?
             get() {
                 return tokenResponse.idToken
+            }
+
+        val hasIdToken: Boolean
+            get() {
+                return tokenResponse.idToken != null
             }
     }
 
 internal fun extractClaims(tokenResponse: TokenResponse): Map<String, Any?> {
-    val idToken = tokenResponse.idToken
+    val idToken = tokenResponse.idToken ?: return emptyMap()
     val parts = idToken.split(".")
 
     return Json.decodeFromString(

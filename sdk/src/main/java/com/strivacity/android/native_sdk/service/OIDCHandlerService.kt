@@ -116,6 +116,7 @@ internal class OIDCHandlerService(
 internal class OidcParams(
     val onSuccess: () -> Unit,
     val onError: (Error) -> Unit,
+    val shouldVerifyIdTokenClaims: Boolean,
 ) {
     val codeVerifier: String = OIDCParamGenerator.generateRandomString(32)
     val codeChallenge: String = OIDCParamGenerator.generateCodeChallenge(codeVerifier)
@@ -156,7 +157,7 @@ internal data class TokenRefreshParams(
 @Serializable
 internal data class TokenResponse(
     @SerialName("access_token") val accessToken: String,
-    @SerialName("id_token") val idToken: String,
+    @SerialName("id_token") val idToken: String?,
     @SerialName("expires_in") val expiresIn: Int,
     @SerialName("refresh_token") val refreshToken: String?,
 )

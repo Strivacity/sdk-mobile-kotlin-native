@@ -241,9 +241,17 @@ fun Login(nativeSDK: NativeSDK) {
 
                 Button(onClick = {
                     coroutineScope.launch {
-                        val idToken = profile!!.idToken
-                        println(idToken)
-                        Toast.makeText(context, idToken, Toast.LENGTH_LONG).show()
+                        if (profile!!.hasIdToken) {
+                            val idToken = profile!!.idToken
+                            Toast.makeText(context, idToken, Toast.LENGTH_LONG).show()
+                        } else {
+                            Toast
+                                .makeText(
+                                    context,
+                                    "ID token was not requested, missing `openid` scope",
+                                    Toast.LENGTH_LONG,
+                                ).show()
+                        }
                     }
                 }) {
                     Text("Get ID Token")
