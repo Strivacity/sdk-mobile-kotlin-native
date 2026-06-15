@@ -18,6 +18,14 @@ open class OidcError(
     val errorDescription: String?,
 ) : Error()
 
+class TokenRefreshOidcError(
+    error: String,
+    errorDescription: String?,
+) : OidcError(error, errorDescription) {
+    override val message: String =
+        "Token refresh failed — error: $error, description: \"${errorDescription ?: ""}\", session cleared"
+}
+
 class HostedFlowCanceledError : Error()
 
 class UnknownError(

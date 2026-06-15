@@ -60,6 +60,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -223,6 +224,67 @@ internal class NativeSDKRefresh : NativeSDKTestBase() {
             testClock.advanceBy(2.hours)
             val wasRefreshed = sdk.refreshTokensIfNeeded()
             assertFalse(wasRefreshed)
+            verify(testSession).clear()
+        }
+
+    @Test
+    fun refresh_shouldClearSession_andThrowTokenRefreshOidcError_on400() =
+        runTest {
+            val sdk =
+                sdkBuilder
+                    .apply { scheduler = testScheduler }
+                    .store { expiredAccessToken() }
+                    .http {
+                        respond(
+                            content =
+                                """{"error":"invalid_grant","error_description":"Refresh token has been revoked"}""",
+                            status = HttpStatusCode.BadRequest,
+                            headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                        )
+                    }.build()
+            testClock.advanceBy(2.hours)
+
+            var thrown: TokenRefreshOidcError? = null
+            try {
+                sdk.refreshTokensIfNeeded()
+                fail("Expected TokenRefreshOidcError to be thrown")
+            } catch (e: TokenRefreshOidcError) {
+                thrown = e
+            }
+
+            assertNotNull(thrown)
+            assertEquals("invalid_grant", thrown!!.error)
+            assertEquals("Refresh token has been revoked", thrown.errorDescription)
+            verify(testSession).clear()
+        }
+
+    @Test
+    fun refresh_shouldCarryOidcFields_whenErrorDescriptionIsAbsent_on400() =
+        runTest {
+            val sdk =
+                sdkBuilder
+                    .apply { scheduler = testScheduler }
+                    .store { expiredAccessToken() }
+                    .http {
+                        respond(
+                            content = """{"error":"invalid_grant"}""",
+                            status = HttpStatusCode.BadRequest,
+                            headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                        )
+                    }.build()
+            testClock.advanceBy(2.hours)
+
+            var thrown: TokenRefreshOidcError? = null
+            try {
+                sdk.refreshTokensIfNeeded()
+                fail("Expected TokenRefreshOidcError to be thrown")
+            } catch (e: TokenRefreshOidcError) {
+                thrown = e
+            }
+
+            assertNotNull(thrown)
+            assertEquals("invalid_grant", thrown!!.error)
+            assertNull(thrown.errorDescription)
             verify(testSession).clear()
         }
 }
