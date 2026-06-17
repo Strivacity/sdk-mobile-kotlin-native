@@ -6,7 +6,7 @@ android {
 
     defaultConfig {
         applicationId = "com.strivacity.android.native_sdk.javademo"
-        minSdk = 29
+        minSdk = 28
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
