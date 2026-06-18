@@ -76,8 +76,8 @@ fun Main() {
             NativeSDK(
                 "https://example.org",
                 "",
-                "android://native-flow",
-                "android://native-flow",
+                "com.strivacity.demoapp://native-flow",
+                "com.strivacity.demoapp://native-flow",
                 SharedPreferenceStorage(
                     context.getSharedPreferences("kotlin-demo", Context.MODE_PRIVATE),
                 ),

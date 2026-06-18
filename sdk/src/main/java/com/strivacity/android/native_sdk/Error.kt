@@ -42,6 +42,11 @@ class HttpError(
 
 class SessionExpiredError : Error()
 
+class UnsupportedFeatureError(
+    feature: String,
+    message: String,
+) : Error("Unsupported feature: $feature. $message")
+
 /**
  * General error class for exceptions thrown by Platform.
  * Example: Passkey enrollment error

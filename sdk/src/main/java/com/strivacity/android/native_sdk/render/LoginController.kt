@@ -11,6 +11,7 @@ import com.strivacity.android.native_sdk.Logging
 import com.strivacity.android.native_sdk.NativeSDK
 import com.strivacity.android.native_sdk.PlatformError
 import com.strivacity.android.native_sdk.SessionExpiredError
+import com.strivacity.android.native_sdk.UnsupportedFeatureError
 import com.strivacity.android.native_sdk.render.models.AssertionOptions
 import com.strivacity.android.native_sdk.render.models.EnrollOptions
 import com.strivacity.android.native_sdk.render.models.FormWidget
@@ -21,6 +22,7 @@ import com.strivacity.android.native_sdk.render.models.WithAssertionOptions
 import com.strivacity.android.native_sdk.render.models.WithEnrollmentOptions
 import com.strivacity.android.native_sdk.service.LoginHandlerService
 import com.strivacity.android.native_sdk.service.OidcParams
+import com.strivacity.android.native_sdk.util.FeatureDetection
 import io.ktor.http.encodeURLPath
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,6 +40,7 @@ class LoginController
         private val fallbackHandler: FallbackHandler,
         private val logging: Logging,
         private val credentialManagerProvider: CredentialManagerProvider,
+        private val featureDetection: FeatureDetection = FeatureDetection.instance,
     ) {
         private val _screen = MutableStateFlow<Screen?>(null)
         val screen: StateFlow<Screen?> = _screen
@@ -96,6 +99,13 @@ class LoginController
             }
             return assertionWidget
         }
+
+        private fun hasEnrollmentOrAssertionWidget(forms: List<FormWidget>) =
+            forms.any { form ->
+                form.widgets.any { widget ->
+                    widget is WithAssertionOptions<*> || widget is WithEnrollmentOptions<*>
+                }
+            }
 
         suspend fun submit(
             formId: String,
@@ -192,30 +202,46 @@ class LoginController
 
         private suspend fun updateScreen(screen: Screen) {
             _processing.value = false
+
             if (screen.finalizeUrl != null) {
                 logging.debug("LoginController: Finalizing flow")
                 nativeSDK.continueFlow(screen.finalizeUrl)
                 return
             }
 
-            if (screen.hostedUrl != null && screen.forms == null && screen.messages == null) {
+            val screenForms = screen.forms
+            if (screen.hostedUrl != null && screenForms == null && screen.messages == null) {
                 logging.debug("LoginController: Triggering cloud-triggered fallback")
                 triggerFallback(screen.hostedUrl)
                 return
             }
 
-            if (screen.forms != null) {
+            if (screenForms != null) {
                 logging.info(
                     "LoginController: Loading screen `${screen.screen ?: "unknown"}`",
                 )
+
+                if (!featureDetection.isPasskeySupported() && hasEnrollmentOrAssertionWidget(screenForms)) {
+                    logging.warn("Requested Passkey/WebAuthn Widget but current platform does not support it.")
+                    if (screen.hostedUrl != null) {
+                        logging.warn("Triggering fallback to Hosted experience")
+                        triggerFallback(screen.hostedUrl)
+                        return
+                    }
+                    throw UnsupportedFeatureError(
+                        feature = "Passkey/WebAuthn",
+                        message = "Platform does not support passkeys/webauthn.",
+                    )
+                }
+
                 logging.debug(
-                    "LoginController: forms displayed: ${screen.forms.map { (id, _) ->
+                    "LoginController: forms displayed: ${screenForms.map { (id, _) ->
                         id
                     }}",
                 )
                 this._screen.value = screen
                 this._messages.value = screen.messages
-                updateFormValues(screen.forms)
+                updateFormValues(screenForms)
             } else {
                 val updatedScreen = this._screen.value?.copy(messages = screen.messages)
                 this._screen.value = updatedScreen

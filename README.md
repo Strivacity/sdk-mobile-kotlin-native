@@ -475,6 +475,17 @@ nativeSDK.login(
 > **Note:** If a plain `Context` (e.g. application context) is passed, Passkey functionality will not be available, `IllegalArgumentException`
 > will be thrown.
 
+##### API level requirements and fallback behavior
+
+Passkeys require **Android Q (API level 29)** or higher. On **API level 28** the device is considered unsupported and the SDK falls back automatically when Passkey is configured to be used on IDP side.
+
+| Situation                                          | Behaviour                                                      |
+|----------------------------------------------------|----------------------------------------------------------------|
+| Device API < 29 **and** a hosted URL is available  | The SDK triggers the hosted (browser-based) flow as a fallback |
+| Device API < 29 **and no** hosted URL is available | An `UnsupportedFeatureError` is thrown                         |
+
+The hosted fallback allows the journey to continue via the browser. If you need to support API level 28 devices, ensure to catch `UnsupportedFeatureError` to make sure all cases are covered. 
+
 #### Cancel the active flow
 
 During login, it's possible to programmatically cancel a login flow using the `cancelFlow` method on the `nativeSDK` instance.
