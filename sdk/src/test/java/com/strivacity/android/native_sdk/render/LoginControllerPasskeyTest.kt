@@ -2,23 +2,25 @@ package com.strivacity.android.native_sdk.render
 
 import FakeLogging
 import android.app.Activity
-import androidx.credentials.CreatePublicKeyCredentialRequest
 import androidx.credentials.CreatePublicKeyCredentialResponse
-import androidx.credentials.GetCredentialRequest
 import androidx.credentials.GetCredentialResponse
 import androidx.credentials.PublicKeyCredential
 import androidx.credentials.exceptions.CreateCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import com.strivacity.android.native_sdk.NativeSDK
 import com.strivacity.android.native_sdk.PlatformError
-import com.strivacity.android.native_sdk.render.models.AssertionOptions
-import com.strivacity.android.native_sdk.render.models.EnrollOptions
-import com.strivacity.android.native_sdk.render.models.FormWidget
-import com.strivacity.android.native_sdk.render.models.PasskeyEnrollWidget
-import com.strivacity.android.native_sdk.render.models.PasskeyLoginWidget
-import com.strivacity.android.native_sdk.render.models.Screen
+import com.strivacity.android.native_sdk.UnsupportedFeatureError
+import com.strivacity.android.native_sdk.render.PasskeyTestFixtures.buildAssertController
+import com.strivacity.android.native_sdk.render.PasskeyTestFixtures.buildEnrollController
+import com.strivacity.android.native_sdk.render.PasskeyTestFixtures.fakeAuthenticationJson
+import com.strivacity.android.native_sdk.render.PasskeyTestFixtures.fakeRegistrationJson
+import com.strivacity.android.native_sdk.render.PasskeyTestFixtures.finalizeScreen
+import com.strivacity.android.native_sdk.render.PasskeyTestFixtures.nonPasskeyScreen
+import com.strivacity.android.native_sdk.render.PasskeyTestFixtures.passkeyEnrollScreen
+import com.strivacity.android.native_sdk.render.PasskeyTestFixtures.passkeyEnrollScreenWithoutHostedUrl
+import com.strivacity.android.native_sdk.render.PasskeyTestFixtures.passkeyLoginScreen
 import com.strivacity.android.native_sdk.service.LoginHandlerService
-import com.strivacity.android.native_sdk.service.OidcParams
+import com.strivacity.android.native_sdk.util.FeatureDetection
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -32,6 +34,7 @@ import org.junit.runner.RunWith
 import org.mockito.kotlin.any
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.robolectric.Robolectric
@@ -56,161 +59,34 @@ internal class LoginControllerPasskeyTest {
 
     // region Helpers
 
-    /**
-     * Minimal [CredentialManagerProvider] stub that allows tests to control the activity context
-     * and delegate credential operations to simple lambdas.
-     */
-    private class FakeCredentialManagerProvider(
-        private val activityContext: Activity?,
-        private val enroller: suspend (
-            Activity,
-            CreatePublicKeyCredentialRequest,
-        ) -> CreatePublicKeyCredentialResponse = { _, _ -> throw UnsupportedOperationException() },
-        private val asserter: suspend (
-            Activity,
-            GetCredentialRequest,
-        ) -> GetCredentialResponse = { _, _ -> throw UnsupportedOperationException() },
-    ) : CredentialManagerProvider {
-        override fun activityContext(): Activity? = activityContext
-
-        override suspend fun createCredential(
-            context: Activity,
-            request: CreatePublicKeyCredentialRequest,
-        ): CreatePublicKeyCredentialResponse = enroller(context, request)
-
-        override suspend fun getCredential(
-            context: Activity,
-            request: GetCredentialRequest,
-        ): GetCredentialResponse = asserter(context, request)
-    }
-
     private fun buildEnrollController(
         activityContext: Activity?,
+        featureDetection: FeatureDetection = PasskeyTestFixtures.PasskeySupportedFeatureDetection(),
         enroller: suspend (
             Activity,
-            CreatePublicKeyCredentialRequest,
+            androidx.credentials.CreatePublicKeyCredentialRequest,
         ) -> CreatePublicKeyCredentialResponse,
-    ) = LoginController(
-        nativeSDK = mockNativeSDK,
-        loginHandlerService = mockLoginHandlerService,
-        oidcParams = OidcParams(onSuccess = {}, onError = {}, shouldVerifyIdTokenClaims = true),
-        fallbackHandler = {},
-        logging = fakeLogging,
-        credentialManagerProvider =
-            FakeCredentialManagerProvider(
-                activityContext = activityContext,
-                enroller = enroller,
-            ),
+    ) = buildEnrollController(
+        mockNativeSDK,
+        mockLoginHandlerService,
+        fakeLogging,
+        activityContext,
+        featureDetection,
+        enroller,
     )
 
     private fun buildAssertController(
         activityContext: Activity?,
-        asserter: suspend (Activity, GetCredentialRequest) -> GetCredentialResponse,
-    ) = LoginController(
-        nativeSDK = mockNativeSDK,
-        loginHandlerService = mockLoginHandlerService,
-        oidcParams = OidcParams(onSuccess = {}, onError = {}, shouldVerifyIdTokenClaims = true),
-        fallbackHandler = {},
-        logging = fakeLogging,
-        credentialManagerProvider =
-            FakeCredentialManagerProvider(
-                activityContext = activityContext,
-                asserter = asserter,
-            ),
+        featureDetection: FeatureDetection = PasskeyTestFixtures.PasskeySupportedFeatureDetection(),
+        asserter: suspend (Activity, androidx.credentials.GetCredentialRequest) -> GetCredentialResponse,
+    ) = buildAssertController(
+        mockNativeSDK,
+        mockLoginHandlerService,
+        fakeLogging,
+        activityContext,
+        featureDetection,
+        asserter,
     )
-
-    private val fakeEnrollOptions =
-        EnrollOptions(
-            rp = EnrollOptions.Rp(id = "example.com", name = "Example"),
-            user = EnrollOptions.User(id = "dXNlcjE=", name = "User One", displayName = "User One"),
-            challenge = "Y2hhbGxlbmdl",
-            pubKeyCredParams = listOf(EnrollOptions.PubKeyCredParam(type = "public-key", alg = -7)),
-            excludeCredentials = emptyList(),
-            authenticatorSelection =
-                EnrollOptions.AuthenticatorSelection(
-                    authenticatorAttachment = null,
-                    requireResidentKey = null,
-                    residentKey = "preferred",
-                    userVerification = "required",
-                ),
-            attestation = "none",
-        )
-
-    private val fakeAssertionOptions =
-        AssertionOptions(
-            allowCredentials = emptyList(),
-            challenge = "Y2hhbGxlbmdl",
-            rpId = "example.com",
-            userVerification = "required",
-            timeout = null,
-        )
-
-    private fun passkeyEnrollScreen() =
-        Screen(
-            screen = "passkey-enroll",
-            branding = null,
-            hostedUrl = "https://example.com/hosted",
-            finalizeUrl = null,
-            forms =
-                listOf(
-                    FormWidget(
-                        id = "passkeyEnroll",
-                        widgets =
-                            listOf(
-                                PasskeyEnrollWidget(
-                                    id = "passkeyEnroll.credential",
-                                    label = "Register passkey",
-                                    render = null,
-                                    enrollOptions = fakeEnrollOptions,
-                                ),
-                            ),
-                    ),
-                ),
-            layout = null,
-            messages = null,
-        )
-
-    private fun passkeyLoginScreen() =
-        Screen(
-            screen = "passkey-login",
-            branding = null,
-            hostedUrl = "https://example.com/hosted",
-            finalizeUrl = null,
-            forms =
-                listOf(
-                    FormWidget(
-                        id = "passkey",
-                        widgets =
-                            listOf(
-                                PasskeyLoginWidget(
-                                    id = "passkey.credential",
-                                    label = "Sign in with passkey",
-                                    render = null,
-                                    assertionOptions = fakeAssertionOptions,
-                                ),
-                            ),
-                    ),
-                ),
-            layout = null,
-            messages = null,
-        )
-
-    private fun finalizeScreen() =
-        Screen(
-            screen = null,
-            branding = null,
-            hostedUrl = null,
-            finalizeUrl = "https://example.com/finalize",
-            forms = null,
-            layout = null,
-            messages = null,
-        )
-
-    // Realistic enough JSON shapes to satisfy Json.parseToJsonElement in the controller
-    private val fakeRegistrationJson =
-        """{"id":"abc","rawId":"abc","type":"public-key","response":{"clientDataJSON":"","attestationObject":""}}"""
-    private val fakeAuthenticationJson =
-        """{"id":"abc","rawId":"abc","type":"public-key","response":{"clientDataJSON":"","authenticatorData":"","signature":"","userHandle":""}}"""
 
     // endregion
 
@@ -508,6 +384,136 @@ internal class LoginControllerPasskeyTest {
                 // expected
             }
         }
+    }
+
+    // endregion
+
+    // region Scenario 6 – unsupported device behavior
+
+    @Test
+    fun initialize_shouldThrowUnsupportedFeatureError_whenPasskeyUnsupportedAndNoHostedUrl() {
+        val controller =
+            buildEnrollController(
+                activityContext = activity,
+                featureDetection = PasskeyTestFixtures.PasskeyUnsupportedFeatureDetection(),
+            ) { _, _ -> throw UnsupportedOperationException() }
+
+        runBlocking {
+            whenever(mockLoginHandlerService.initCall()).thenReturn(passkeyEnrollScreenWithoutHostedUrl())
+
+            try {
+                controller.initialize()
+                fail("Expected UnsupportedFeatureError to be thrown")
+            } catch (e: UnsupportedFeatureError) {
+                assertTrue(
+                    "Error message should mention Passkey/WebAuthn",
+                    e.message?.contains("Passkey/WebAuthn") == true,
+                )
+            }
+        }
+
+        runBlocking {
+            // Should not attempt to finalize or continue flow
+            verify(mockNativeSDK, never()).continueFlow(any())
+        }
+    }
+
+    @Test
+    fun initialize_shouldTriggerFallback_whenPasskeyUnsupportedAndHostedUrlAvailable() {
+        var fallbackTriggered = false
+        var fallbackUrl: String? = null
+
+        val controller =
+            LoginController(
+                nativeSDK = mockNativeSDK,
+                loginHandlerService = mockLoginHandlerService,
+                oidcParams =
+                    com.strivacity.android.native_sdk.service.OidcParams(
+                        onSuccess = {},
+                        onError = {},
+                        shouldVerifyIdTokenClaims = true,
+                    ),
+                fallbackHandler = { uri ->
+                    fallbackTriggered = true
+                    fallbackUrl = uri
+                },
+                logging = fakeLogging,
+                credentialManagerProvider =
+                    PasskeyTestFixtures.FakeCredentialManagerProvider(
+                        activityContext = activity,
+                    ),
+                featureDetection = PasskeyTestFixtures.PasskeyUnsupportedFeatureDetection(),
+            )
+
+        runBlocking {
+            whenever(mockLoginHandlerService.initCall()).thenReturn(passkeyEnrollScreen())
+
+            controller.initialize()
+        }
+
+        assertTrue("Fallback should have been triggered", fallbackTriggered)
+        assertTrue(
+            "Fallback URL should match hostedUrl",
+            fallbackUrl == "https://example.com/hosted",
+        )
+        assertTrue(
+            "Warning about unsupported feature should appear in logs",
+            fakeLogging.logMessages.contains("Passkey/WebAuthn Widget"),
+        )
+    }
+
+    @Test
+    fun initialize_shouldSucceed_whenPasskeyUnsupportedButNoPasskeyForms() {
+        val controller =
+            buildEnrollController(
+                activityContext = activity,
+                featureDetection = PasskeyTestFixtures.PasskeyUnsupportedFeatureDetection(),
+            ) { _, _ -> throw UnsupportedOperationException() }
+
+        runBlocking {
+            whenever(mockLoginHandlerService.initCall()).thenReturn(nonPasskeyScreen())
+
+            // Should not throw
+            controller.initialize()
+        }
+
+        assertNotNull("Screen should be loaded successfully", controller.screen.value)
+    }
+
+    @Test
+    @Config(sdk = [28])
+    fun initialize_shouldTriggerFallback_whenRunningOnApi28WithPasskeyForm() {
+        // On API 28, FeatureDetection should naturally return false
+        var fallbackTriggered = false
+
+        val controller =
+            LoginController(
+                nativeSDK = mockNativeSDK,
+                loginHandlerService = mockLoginHandlerService,
+                oidcParams =
+                    com.strivacity.android.native_sdk.service.OidcParams(
+                        onSuccess = {},
+                        onError = {},
+                        shouldVerifyIdTokenClaims = true,
+                    ),
+                fallbackHandler = { fallbackTriggered = true },
+                logging = fakeLogging,
+                credentialManagerProvider =
+                    PasskeyTestFixtures.FakeCredentialManagerProvider(
+                        activityContext = activity,
+                    ),
+            )
+
+        runBlocking {
+            whenever(mockLoginHandlerService.initCall()).thenReturn(passkeyLoginScreen())
+
+            controller.initialize()
+        }
+
+        assertTrue(
+            "Fallback should be triggered on API 28 with passkey form",
+            fallbackTriggered,
+        )
     }
 
     // endregion
