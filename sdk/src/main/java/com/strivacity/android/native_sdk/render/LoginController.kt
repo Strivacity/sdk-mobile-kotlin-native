@@ -103,7 +103,7 @@ class LoginController
         private fun hasEnrollmentOrAssertionWidget(forms: List<FormWidget>) =
             forms.any { form ->
                 form.widgets.any { widget ->
-                    widget is WithAssertionOptions<Widget> || widget is WithEnrollmentOptions<Widget>
+                    widget is WithAssertionOptions<*> || widget is WithEnrollmentOptions<*>
                 }
             }
 
@@ -230,7 +230,7 @@ class LoginController
                     }
                     throw UnsupportedFeatureError(
                         feature = "Passkey/WebAuthn",
-                        "Platform does not support passkeys/webauthn.",
+                        message = "Platform does not support passkeys/webauthn.",
                     )
                 }
 
